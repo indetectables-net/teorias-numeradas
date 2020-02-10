@@ -1,0 +1,795 @@
+		   	T U T O R I A L  D E  C R A C K I N G  E N  J A V A 
+					
+
+		1-Introducción
+		2-Víctima
+		2-Herramientas
+		3-Decompilado
+		4-Análisis				
+		5-Parcheando bytecode
+		6-FileGen
+
+
+
+	1-Introducción
+
+	En este escrito veremos como decompilar un programa en java, luego buscaremos la rutina de seguridad
+ 	y nos la saltaremos parcheando el bytecode de java.
+	Este programa requiere un archivo de licencia, el cual generaremos también para así pasar un buen 
+	rato con nuestro amiguito y no toquetear el binario que siempre es mejor.
+
+	El cracking en java no tiene mucha complejidad si el código no está ofuscado, en nuestro caso no lo
+	está y veremos que lo más difícil es buscar la rutina, una vez localizado el código, con unos pocos co-
+	nocimientos en java...ya es nuestro.
+
+	
+
+	2-Víctima
+
+	El programa que vamos a destripar no es comercial, es un programa privativo de Fujitsu, que sirve para
+	validar ficheros XBRL(Xtensible Bussines Reporting Language).
+
+	Este software solo se puede conseguir pidiendo una copia a Fujitsu, ellos te proporcionan tu instalable, y 
+	un fichero de licencia válido para 30 días, con lo que al mes ya no hay juguete...ya veremos ;)
+
+	Se llama XWAND y básicamente valida y generaficheros XBRL con plantillas XSD , y te muestra un informe muy 
+	detallado con los errores varios que pueda contener tu ficherito XBRL.
+
+	Esta desarrollado en Java creo que 1.4, y con gui en Swing pesado como él solo y encima no es multiplataforma,
+	bien así me gusta aprovechando los recursos.
+
+	
+
+	3-Herramientas
+	
+	-Decompilador java (jad)
+	-Shell scripting (bash)
+	-Güindows (para el progri)
+	-Un editor de bytecode(jbe)
+	-Una pipa bien cargada(lemon haze)
+	-Taza de te (rojo del mercadona)
+	-Una computadora (x86)
+
+
+	
+	4-Decompilando
+
+	El código de un programa compilado en java se deja en ficheros .class, y eśtos a su vez empaquetados en .jar, no 
+	es obligatorio empaquetarlos pero siempre es mas cómodo que tener 200 clases java por ahí desperdigadas.
+
+	Cada .class se corresponde con una clase java, en una de ellas tenemos el main, que es donde comienza la ejecución.
+
+	El código fuente se guarda en ficheros .java, se compilan con javac y entonces se generan los .class.
+
+	Los ficheros .jar estan comprimidos con el algritmo de zip, uséase que los podemos descomprimir con cualquiera de 
+	las utilidades que ya tenemos, aunque el jdk de java proporciona la herramienta jar que sirve para generar y 
+	desempaquetar a éstos.
+
+	Este programa contiene un montón de .jar, ya sean librerías gráficas, xml, o propias de la aplicación, y para hacer
+	la búsqueda de la rutina de seguridad es todo un reto hacerlo a mano, emplearemos el shell scripting de bash, para
+	automatizar el proceso.
+
+	Para utilizar la potencia del shell scripting de bash en windows podemos instalar Cygwin, que es un instalador de 
+	herramientas GNU, entre ellas, bash, ssh, gcc, gdb, etc...
+
+	El instalador de xwand ha dejado los jars en el directorio(en cygwin):
+
+		/cygdrive/c/Archivos de programa/ISXWand/XWand-ps/tools
+	
+	Y en tools tenemos 3 directorios repletos de jars:
+	
+		$ ls -la
+		total 0
+		drwxrwx---+ 1 Administradores SYSTEM 0 mar 14 19:32 .
+		drwxrwx---+ 1 Administradores SYSTEM 0 mar 14 19:32 ..
+		drwxrwx---+ 1 Administradores SYSTEM 0 mar 14 19:32 excel
+		drwxrwx---+ 1 Administradores SYSTEM 0 mar 14 19:32 formula
+		drwxrwx---+ 1 Administradores SYSTEM 0 mar 14 19:32 xbrl21
+
+	Para hacernos una idea de cuantos jars hay, podemos ejecutar la orden find recursivamente y con el filtro de 
+	ficheros jar:
+
+		$ find . -name *.jar
+		./excel/sheetic/lib/instancecreator2.jar
+		./excel/sheetic/lib/mapping-common.jar
+		./excel/sheetic/lib/mappingengine.jar
+		./excel/sheetic/lib/mappingic.jar
+		./excel/sheetic/lib/poi2.5_modified.jar
+		./excel/sheetic/lib/taxeditor2.jar
+		./excel/sheetic/lib/tool-common.jar
+		./excel/sheetic/lib/xbrldimensions.jar
+		./excel/sheetic/lib/xmlpath2.jar
+		./excel/sheetic/lib/xmlpath2fn.jar
+		./excel/sheetic/lib/xmlpro.jar
+		./excel/sheetic/lib/xmlschemac.jar
+		./excel/sheetic/lib/xmltransx.jar
+		./excel/sheetic/lib/xwand.jar
+		./excel/sheetic/lib/xwandlink.jar
+		./excel/sheetic/lib/xwandschema.jar
+		./excel/sheetic/lib/xwand_xpath2.jar
+		./excel/sheetic/plugin/formulaproc.jar
+		./excel/sheetic/plugin/mappingIC-newformula.jar
+		./excel/sheetic/plugin/mappingic-report.jar
+		./excel/sheetic/plugin/mappingic_import.jar
+		./excel/sheetic/plugin/xbrl-function.jar
+		./formula/lib/datamapping.jar
+		./formula/lib/formulaeditor.jar
+		./formula/lib/formulaproc.jar
+		./formula/lib/instancecreator2.jar
+		./formula/lib/taxeditor2.jar
+		./formula/lib/tool-common.jar
+		./formula/lib/xbrl-function.jar
+		./formula/lib/xbrldimensions.jar
+		./formula/lib/xmlpath2.jar
+		./formula/lib/xmlpath2fn.jar
+		./formula/lib/xmlpro.jar
+		./formula/lib/xmlschemac.jar
+		./formula/lib/xmltransx.jar
+		./formula/lib/xwand.jar
+		./formula/lib/xwandlink.jar
+		./formula/lib/xwandschema.jar
+		./formula/lib/xwand_xpath2.jar
+		./formula/plugin/addneglabelplugin.jar
+		./formula/plugin/neglabel_plugin.jar
+		./xbrl21/lib/diff.jar
+		./xbrl21/lib/instancecreator2.jar
+		./xbrl21/lib/taxeditor2.jar
+		./xbrl21/lib/tool-common.jar
+		./xbrl21/lib/xmlpath2.jar
+		./xbrl21/lib/xmlpath2fn.jar
+		./xbrl21/lib/xmlpro.jar
+		./xbrl21/lib/xmlschemac.jar
+		./xbrl21/lib/xmltransx.jar
+		./xbrl21/lib/xwand.jar
+		./xbrl21/lib/xwandlink.jar
+		./xbrl21/lib/xwandschema.jar
+		./xbrl21/lib/xwand_xpath2.jar
+		./xbrl21/plugin/addneglabelplugin.jar
+		./xbrl21/plugin/edgarplugin.jar
+		./xbrl21/plugin/edittaxonomyplugin.jar
+		./xbrl21/plugin/formulaproc.jar
+		./xbrl21/plugin/frisproc.jar
+		./xbrl21/plugin/frtaplugin.jar
+		./xbrl21/plugin/frtaproc.jar
+		./xbrl21/plugin/impstdxsd_plugin.jar
+		./xbrl21/plugin/inscrt2-formulaplugin.jar
+		./xbrl21/plugin/inscrt_reporterplugin.jar
+		./xbrl21/plugin/labelsearchplugin.jar
+		./xbrl21/plugin/neglabel_plugin.jar
+		./xbrl21/plugin/TaxReportPlugin.jar
+		./xbrl21/plugin/tetoic_plugin.jar
+		./xbrl21/plugin/xbrl-function.jar
+		./xbrl21/plugin/xbrldimensions.jar
+		./xbrl21/plugin/xbrldimensions_plugin.jar
+
+
+	Si bien podríamos obviar un montón de jar por el nombre, ya que resultan descriptivos pero mejor descomprimimos
+	todo, decompilamos todo y buscamos en todo ese código fuente las palabras mágicas.
+
+	Me voy a llevar todos estos jars a mi home y allí empezaré a hacer trastadas, ya que a la hora de descomprimirlos 
+	 se van a generar miles de .class!
+
+		$ tar -cf xwand.tar tools/	
+		$ mv xwand.tar $HOME
+		$ cd $HOME
+		$ tar xf xwand.tar
+		$ mv tools XWAND_CRACK
+		$ cd XWAND_CRACK
+
+	Aquí ejecutaremos el comando find pero pasándole el argumento exec el cual nos dejará ejecutar un comando por cada
+	resultado obtenido, descomprimiremos con unzip cada jar encontrado por find:
+
+		$ find . -name *.jar  -exec unzip -o {} \;
+	
+	El argumento -o de unzip es para que no pregunte al encontrar ficheros iguales, es decir algunos ficheros se sobre-
+	escribiran, no nos preocupa ya que son ficheros de configuración MANIFEST, por cierto ha tardado 3:40 en descomprimir 
+	todos los jars en un Vmware y ha extraído 9080 ficheros .class!
+
+	Vaya lío para encontrar el código, pero hemos de tener en cuenta que tambien se han descomprimido las librerías que 
+	tenía incluidas, xml, dom, poi, regex, etc...
+
+	Podríamos localizarlas y borrarlas pero asegurando que no borramos ninguna parte del xwand, por ejemplo a mi me ha 
+	creado esta estructura de directorios, dentro estan los class:
+
+		$ ls -la
+		total 61
+		drwxr-x---+ 1 Administrador Ninguno     0 mar 14 20:20 .
+		drwxr-xr-x+ 1 Administrador Ninguno     0 mar 14 20:15 ..
+		-rw-r--r--  1 Administrador Ninguno   103 ene 20  2009 a.class          
+		drwxr-xr-x+ 1 Administrador Ninguno     0 mar 14 20:18 com
+		drwxr-x---+ 1 Administrador Ninguno     0 mar 14 19:32 excel
+		drwxr-x---+ 1 Administrador Ninguno     0 mar 14 19:32 formula
+		drwxr-xr-x+ 1 Administrador Ninguno     0 oct 24  2008 javax
+		drwxr-xr-x+ 1 Administrador Ninguno     0 mar 14 20:20 META-INF
+		drwxr-xr-x+ 1 Administrador Ninguno     0 mar 14 20:18 org
+		-rw-r--r--  1 Administrador Ninguno  4473 ene 20  2009 SAXSourceTest$ReferenceXMLReader.class
+		-rw-r--r--  1 Administrador Ninguno  2647 ene 20  2009 SAXSourceTest.class
+		-rw-r--r--  1 Administrador Ninguno 47467 ene 20  2009 SchemaComponentDump.class
+		drwxr-xr-x+ 1 Administrador Ninguno     0 mar 14 20:18 src
+		drwxr-x---+ 1 Administrador Ninguno     0 mar 14 19:32 xbrl21
+
+
+	Con seguridad podemos decir que javax y org se pueden borrar, ya que son librerias de xml, poi y demás que no son del 
+	programa.
+
+		$  rm -rf javax org
+
+	Tampoco se ha acotado mucho el número de clases, 8517 pues vaya, no pongo un listado porque se comería el documento, 
+	esto me hace plantear, si decompilar todo el código a lo burro mientras me tomo un te, o busco un poquillo a ver si hay 
+	suerte...;)
+
+	Saco el libro de los hechizos y busco, en el manual pone:
+
+	-En caso de encontrar un progri con fichero de licencia, se deberían emplear en la busqueda palabras tales como licencia, 
+	key, pass, trial, etc...
+
+	Todavía no tenemos el código fuente pero podemos buscar en los class a ver si hay un nombre sospechoso...ya que en java 
+	los nombres de los ficheros de código fuente .java, deben ser iguales al nombre de la classe, podríamos tener una pista.
+
+		$ find . | grep -i license
+		./XWAND_CRACK/com/fujitsu/xml/xbrl/xwand/processor/XBRLProcessor$LicenseManager.class
+
+	Esto tiene buena pinta, vamos a decompilar esta clase:
+		
+		$ jad XBRLProcessor\$LicenseManager.class
+		Parsing XBRLProcessor$LicenseManager.class... Generating XBRLProcessor$LicenseManager.jad
+		Overlapped try statements detected. Not all exception handlers will be resolved in the method decodeHex
+		Couldn't fully decompile method decodeHex
+		Couldn't resolve all exception handlers in method decodeHex
+
+	Nos han salido errores al decompilarlo pero no pasa nada, tenemos nuestro .jad generado, y vaya lo que tenemos....
+
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+		// Jad home page: http://www.kpdus.com/jad.html
+		// Decompiler options: packimports(3)
+
+		package com.fujitsu.xml.xbrl.xwand.processor;
+
+		import java.io.*;
+		import java.security.MessageDigest;
+		import java.util.*;
+		import javax.crypto.Cipher;
+		import javax.crypto.spec.SecretKeySpec;
+
+		// Referenced classes of package com.fujitsu.xml.xbrl.xwand.processor:
+		//            XBRLProcessor
+
+		private static class XBRLProcessor$LicenseManager
+		{
+
+		    public static synchronized XBRLProcessor$LicenseManager getInstance()
+		    {
+			if(instance == null)
+			    instance = new XBRLProcessor$LicenseManager();
+			return instance;
+		    }
+
+		    private void loadLicenseFile(File file)
+		    {
+			Properties properties = new Properties();
+			expireDate = null;
+			macCheck = false;
+			if(!file.isFile() || !file.exists() || !file.canRead())
+			    return;
+			try
+			{
+			    FileInputStream fileinputstream = new FileInputStream(file);
+			    ByteArrayOutputStream bytearrayoutputstream = new ByteArrayOutputStream();
+			    byte abyte0[] = new byte[10];
+			    int k = 0;
+			    do
+			    {
+				if(k == -1)
+				    break;
+				k = fileinputstream.read(abyte0, 0, 10);
+				if(k == -1)
+				    break;
+				bytearrayoutputstream.write(abyte0, 0, k);
+			    } while(true);
+			    fileinputstream.close();
+			    bytearrayoutputstream.close();
+			    SecretKeySpec secretkeyspec = new SecretKeySpec(KEY_BYTES, "DESede");
+			    Cipher cipher = Cipher.getInstance("DESede");
+			    cipher.init(2, secretkeyspec);
+			    byte abyte1[] = cipher.doFinal(bytearrayoutputstream.toByteArray());
+			    ByteArrayInputStream bytearrayinputstream = new ByteArrayInputStream(abyte1);
+			    properties.load(bytearrayinputstream);
+			    bytearrayinputstream.close();
+			}
+			catch(Exception exception)
+			{
+			    return;
+			}
+			if(properties.containsKey("hash"))
+			    try
+			    {
+				MessageDigest messagedigest = MessageDigest.getInstance("SHA1");
+				String s1 = properties.getProperty("networkInterface");
+				if(s1 != null)
+				    messagedigest.update(properties.getProperty("networkInterface").getBytes("utf-8"));
+				messagedigest.update(properties.getProperty("user").getBytes("utf-8"));
+				messagedigest.update(properties.getProperty("expireDate").getBytes("utf-8"));
+				String s2 = new String(encodeHex(messagedigest.digest()));
+				if(!s2.equals(properties.getProperty("hash")))
+				    return;
+			    }
+			    catch(Exception exception1)
+			    {
+				return;
+			    }
+			macCheck = true;
+			try
+			{
+			    String s = properties.getProperty("expireDate");
+			    if(s != null && s.length() == 8)
+			    {
+				int i = Integer.parseInt(s.substring(0, 4));
+				int j = Integer.parseInt(s.substring(4, 6)) - 1;
+				int l = Integer.parseInt(s.substring(6, 8));
+				GregorianCalendar gregoriancalendar = new GregorianCalendar(i, j, l);
+				gregoriancalendar.add(5, 1);
+				expireDate = gregoriancalendar.getTime();
+			    }
+			}
+			catch(Exception exception2)
+			{
+			    return;
+			}
+		    }
+
+		    private String getLicensePath()
+		    {
+			String s = System.getProperty("file.separator");
+			String s1 = System.getProperty("user.home");
+			String s2 = System.getProperty("XWAND_LICENSE");
+			String s3 = getenv();
+			String s4 = s2;
+			if(s4 == null)
+			    s4 = s3;
+			if(s4 == null)
+			    s4 = s1;
+			if(s4.endsWith(s))
+			{
+			    s4 = s4.concat("xwand-license");
+			} else
+			{
+			    s4 = s4.concat(s);
+			    s4 = s4.concat("xwand-license");
+			}
+			return s4;
+		    }
+
+		    private String getenv()
+		    {
+			String s = null;
+			try
+			{
+			    if(!System.getProperty("java.version").startsWith("1.4"))
+				s = System.getenv("XWAND_LICENSE");
+			}
+			catch(Throwable throwable) { }
+			return s;
+		    }
+
+		    public boolean isExpired()
+		    {
+			GregorianCalendar gregoriancalendar = new GregorianCalendar();
+			Date date = gregoriancalendar.getTime();
+			return isExpired(date);
+		    }
+
+		    private boolean isExpired(Date date)
+		    {
+			return !macCheck || expireDate == null || date == null || !date.before(expireDate);
+		    }
+
+		    protected byte[] decodeHex(String s)
+			throws Exception
+		    {
+			byte abyte0[];
+			ByteArrayOutputStream bytearrayoutputstream;
+			abyte0 = null;
+			if(s == null)
+			    break MISSING_BLOCK_LABEL_290;
+			bytearrayoutputstream = new ByteArrayOutputStream();
+			int i = 0;
+			int j = s.length();
+			for(int k = 0; i < j; k = 0)
+			{
+			    int l;
+			    for(l = 0; l < 2 && i < j; i++)
+			    {
+				char c = s.charAt(i);
+				if(Character.isWhitespace(c))
+				    continue;
+				if('`' < c)
+				{
+				    if('f' < c)
+				        throw new Exception("INVALID_HEX_BINARY");
+				    k |= 10 + (c - 97) << 4 * (1 - l++);
+				    continue;
+				}
+				if(c < ':')
+				{
+				    if(c < '0')
+				        throw new Exception("INVALID_HEX_BINARY");
+				    k |= c - 48 << 4 * (1 - l++);
+				    continue;
+				}
+				if('@' < c && c < 'G')
+				    k |= 10 + (c - 65) << 4 * (1 - l++);
+				else
+				    throw new Exception("INVALID_HEX_BINARY");
+			    }
+
+			    if(l < 2)
+				throw new Exception("INVALID_HEX_BINARY");
+			    bytearrayoutputstream.write(k);
+			}
+
+			try
+			{
+			    bytearrayoutputstream.close();
+			}
+			catch(IOException ioexception)
+			{
+			    ioexception.printStackTrace();
+			}
+			break MISSING_BLOCK_LABEL_285;
+			Exception exception;
+			exception;
+			try
+			{
+			    bytearrayoutputstream.close();
+			}
+			catch(IOException ioexception1)
+			{
+			    ioexception1.printStackTrace();
+			}
+			throw exception;
+			abyte0 = bytearrayoutputstream.toByteArray();
+			return abyte0;
+		    }
+
+		    protected String encodeHex(byte abyte0[])
+		    {
+			StringBuffer stringbuffer = new StringBuffer(64);
+			if(abyte0 != null)
+			{
+			    int i = 0;
+			    for(int j = abyte0.length; i < j; i++)
+			    {
+				int k;
+				if((k = abyte0[i] >> 4) < 0)
+				    k &= 0xf;
+				int l = abyte0[i] & 0xf;
+				stringbuffer.append("0123456789abcdef".charAt(k));
+				stringbuffer.append("0123456789abcdef".charAt(l));
+			    }
+
+			    return stringbuffer.toString();
+			} else
+			{
+			    return "";
+			}
+		    }
+
+		    private static final String LICENSE_FILE = "xwand-license";
+		    private static final byte KEY_BYTES[] = {
+			0, 1, 0, 2, 0, 3, 0, 4, 4, 0,
+			3, 0, 2, 0, 1, 0, 14, 10, 13, 10,
+			12, 10, 11, 10
+		    };
+		    private static XBRLProcessor$LicenseManager instance = null;
+		    private Date expireDate;
+		    private boolean macCheck;
+		    private static final String HEXBIN_ASCIIS = "0123456789abcdef";
+		    private static final String INVALID_HEX = "INVALID_HEX_BINARY";
+
+
+		    private XBRLProcessor$LicenseManager()
+		    {
+			String s = getLicensePath();
+			loadLicenseFile(new File(s));
+		    }
+		}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+	
+	4-Análisis
+
+	Visto lo que hemos encontrado vamos a analizar lo que tenemos y veremos que vías tomar.
+
+	Está claro que se puede generar un filegen muy fácilmente incluso podemos copiar las propias rutinas para generarlo.
+
+	Parchear tambien se puede y hay una función muy interesante:
+
+		public boolean isExpired()
+		    {
+			GregorianCalendar gregoriancalendar = new GregorianCalendar();
+			Date date = gregoriancalendar.getTime();
+			return isExpired(date);
+		    }
+
+	Esta función es pública o sea que probablemente se esté llamando instanciando a la clase desde otro objeto, y es posible
+	que cuando se llame a esta función ya se halla inicializado y leido la licencia obteniendo los valores de ella, despues
+	llama a:
+
+		private boolean isExpired(Date date)
+		    {
+			return !macCheck || expireDate == null || date == null || !date.before(expireDate);
+		    }
+
+	Aquí vemos que verifica si:
+
+	-La mac es correcta.
+	-ExpireDate existe
+	-Date del sistema existe.
+	-La fecha del sistema es posterior a la fecha expiración de la licencia.
+
+	O sea que todos estos datos están en la licencia, un poco cifrados pero estan :)
+
+	Lo más lógico a la hora de parchear es que esta función retorne un false siempre, para quitar el limite de tiempo, vamos
+	a mirar un poco el bytecode de esta clase a ver que nos encontramos.
+
+
+
+	5-Parcheando bytecode
+
+	La verdad que no tengo ni idea de los opcodes en bytecode y mirando una lista por google veo que hay un montón, algunos 
+	mas intiutivos que otros.
+
+	Con el programa jbe(java bytecode editor) abriremos nuestra clase, tiene entorno gráfico y funciona para linux y windows,
+	 yo lo he ejecutado en linux así:
+
+		$ java ee.ioc.cs.jbe.browser.BrowserApplication
+
+	Es muy fácil de utilizar, a la izquierda está el navegador de objetos(fields, metodos, interfaces, atributos) y en el 
+	centro está el visor y editor de byte code.
+
+	Seleccionamos el método a parchear en mi caso isExpired(), tengo 2 el segundo es el que chequea realmente, la lista de 
+	bytecodes:
+
+
+		 0 aload_0
+		 1 getfield #12 <com/fujitsu/xml/xbrl/xwand/processor/XBRLProcessor$LicenseManager/macCheck Z>
+		 4 ifeq 31 (+27)  --------------->Si la mac es incorrecta saltamos a 31 porque 4+27=31
+		 7 aload_0
+		 8 getfield #11 <com/fujitsu/xml/xbrl/xwand/processor/XBRLProcessor$LicenseManager/expireDate Ljava/util/Date;>
+		11 ifnull 31 (+20) --------------->Si el dateExpired obtenido de la licencia es null saltamos a 31 porque 11+20=31
+		14 aload_1
+		15 ifnull 31 (+16)--------------->Si el date es null saltamos a 31 porque 15+16=31
+		18 aload_1
+		19 aload_0
+		20 getfield #11 <com/fujitsu/xml/xbrl/xwand/processor/XBRLProcessor$LicenseManager/expireDate Ljava/util/Date;>
+		23 invokevirtual #75 <java/util/Date/before(Ljava/util/Date;)Z>
+		26 ifeq 31 (+5)  -------------->Si ha vencido la licencia saltamos a 31 porque 26+5=31
+		29 iconst_0
+		30 ireturn
+		31 iconst_1
+		32 ireturn
+
+	Vemos todas las comparaciones una por una, y según entiendo todos los if saltan a la linea 31 si no pasan la validación, 
+	esta linea mueve un valor constante "iconst_1"(true) a una dirección y retorna, esa constante será la clave para que sea 
+	valida 	o no la licencia.
+
+	La útlima validación es la que realmente moverá la constante correcta iconst_0 y retornará con una correcta validación.
+
+	Claro está que...si....cambiamos...el....iconst_1(true)....por.....iconst_0(false)....SIEMPRE VALIDA CORRECTAMENTE ;)
+
+	O sea que tenemos que parchear este método, no hay mucho curro, en el propio editor del jbe lo cambiamos y grabamos el 
+	método.
+
+	Ahora tenemos que volver a empaquetar el .jar con la clase modificada, investigando un poco veo que el .jar que contiene 
+	esta clase es xwand.jar, como es un zip no es muy difícil volver a empacar todo en su ruta correspondiente.
+
+	Se sustituye el xwand.jar original que por cierto está en varios directorios y probamos la aplicación.....OKS
+
+	Se ha ejecutado la aplicación sin licencia ni na de na, no ha sido muy difícil, ahora a por el keyGen ;)
+
+
+
+
+	6-KeyGen
+
+	En la clase XBRLProcessor$LicenseManager está toda la lógica del cifrado de la licencia, vamos a ver por pasos 
+	como la va descomponiendo y guardando los valores en un properties de java, para luego extraerlos y hacer una 
+	comprobación con un hash SHA1, finalmente analiza el campo expiredDate y valida la expiración.
+
+	-La función loadLicenseFile es la encargada de descifrar con DESede la licencia con las siguientes keys:
+
+		 private static final byte KEY_BYTES[] = {
+		    0, 1, 0, 2, 0, 3, 0, 4, 4, 0,
+		    3, 0, 2, 0, 1, 0, 14, 10, 13, 10,
+		    12, 10, 11, 10
+	    	};
+	
+	Ya tenemos la licencia en plano y podemos ver mejor la hazaña que han hecho estos desarrolladores.
+
+		
+		#XWAND-Trial
+		#Mon Oct 19 14:00:30 JST 2009
+		authUser=okai
+		expireDate=99990101
+		user=sylkat
+		hash=569738621d1805441b3294f5293331e47d01ed8b
+
+	
+	
+	El único campo que nos interesa saber es el de "hash" este contiene una suma sha1 de los campos networkInterface, user y
+	expiredDate codificado en hex y es validado por la rutina.
+
+	La fecha de la licencia está en formato yyyyddmm, y también será validada contra la fecha actual del sistema.
+
+	Pues con esto y un bizcocho....nos dan las ocho, ya tenemos todo lo necesario para poder hacer una licencia.
+
+	Un saludo a Tod@s CLS!
+	
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		import java.awt.*;
+		import java.awt.event.*;
+		import javax.swing.*;
+		import javax.crypto.spec.SecretKeySpec;
+		import javax.crypto.Cipher;
+		import javax.crypto.NoSuchPaddingException;
+		import javax.crypto.IllegalBlockSizeException;
+		import javax.crypto.BadPaddingException;
+		import java.io.*;
+		import java.util.Properties;
+		import java.util.GregorianCalendar;
+		import java.util.Calendar;
+		import java.util.Date;
+		import java.security.MessageDigest;
+		import java.security.InvalidKeyException;
+		import java.security.NoSuchAlgorithmException;
+
+		public class GenLicenseXwand extends JPanel implements ActionListener {
+		    protected JTextField textField;    
+		    protected JLabel labelUser;
+		    protected JButton buttonGenerate;
+		    private final static String newline = "\n";
+		    private static final byte KEY_BYTES[] = {
+			    0, 1, 0, 2, 0, 3, 0, 4, 4, 0,
+			    3, 0, 2, 0, 1, 0, 14, 10, 13, 10,
+			    12, 10, 11, 10
+		    };
+		    
+		    public GenLicenseXwand() {
+			super(new GridBagLayout());
+			labelUser=new JLabel("  User    ");
+			buttonGenerate = new JButton("Generate");
+			textField = new JTextField(20);
+			buttonGenerate.addActionListener(this);       
+			add(labelUser);
+			add(textField);
+			add(buttonGenerate);
+		       
+		    }
+
+		    public void actionPerformed(ActionEvent evt) {
+			String text = textField.getText();       
+			textField.selectAll();
+			File license = new File("xwand-license");       
+			byte[] licenceByte = createLicenseBytes(text,"99990101");
+			byte[] Licence=cryptDesede(licenceByte);
+			createFileLicense(Licence);
+		    }
+
+		    private static void createAndShowGUI() {
+			JFrame frame = new JFrame("-------LicenceGen XWAND-FUJITSU--------");
+			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+			frame.add(new GenLicenseXwand());
+			frame.pack();
+			frame.setVisible(true);
+		    }
+
+		   public static String encodeHex(byte abyte0[]){
+			StringBuffer stringbuffer = new StringBuffer(64);
+			if(abyte0 != null){
+				int i = 0;
+				for(int j = abyte0.length; i < j; i++){
+				    int k;
+				    if((k = abyte0[i] >> 4) < 0)
+					k &= 0xf;
+				    int l = abyte0[i] & 0xf;
+				    stringbuffer.append("0123456789abcdef".charAt(k));
+				    stringbuffer.append("0123456789abcdef".charAt(l));
+				}
+				return stringbuffer.toString();
+		    	}else{
+				return "";
+		    	}
+		   }
+
+
+		   public static byte[] cryptDesede(byte abyte0[]){
+			SecretKeySpec secretkeyspec = new SecretKeySpec(KEY_BYTES, "DESede");
+			byte[] byteCrypt = new byte[0];
+			try {            
+			    Cipher cipher = Cipher.getInstance("DESede");
+			    cipher.init(Cipher.ENCRYPT_MODE, secretkeyspec);
+			    byteCrypt = cipher.doFinal(abyte0);
+			} catch (Exception e) {
+			    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+			} 
+			return byteCrypt;
+		    }
+
+		    public static void createFileLicense(byte[] licenseByte)
+		    {
+			try {
+			    FileOutputStream outputStream = new FileOutputStream("xwand-license");
+			    outputStream.write(licenseByte);
+			    outputStream.close();
+			    
+			} catch (FileNotFoundException e) {
+			    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+			} catch (IOException e) {
+			    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+			}
+
+		    }
+
+		    public static String createSH1Hash(String user, String expireDate)
+		    {
+			String hash="";
+			try {
+			    MessageDigest messagedigest = MessageDigest.getInstance("SHA1");
+			    messagedigest.update(user.getBytes("utf-8"));
+			    messagedigest.update(expireDate.getBytes("utf-8"));
+			    System.out.println("Generating hash SH1...");
+			    System.out.println("user: "+user);
+			    System.out.println("expireData: "+expireDate);
+			    hash = new String(encodeHex(messagedigest.digest()));
+			    System.out.println("HASH SH1: "+hash+"\n");
+
+			} catch (Exception e) {
+			    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+			} 
+			return hash;
+		    }
+
+		    public static byte[] createLicenseBytes(String user, String expireDate)
+		    {
+			String hash=createSH1Hash(user, expireDate);
+			String license="#XWAND-Trial\n";        
+			license=license+"#Mon Oct 19 14:00:30 JST 2009\n";
+			license=license+"authUser=okai\n";
+			license=license+"expireDate="+expireDate+"\n";
+			license=license+"user="+user+"\n";
+			license=license+"hash="+hash+"\n";
+			System.out.println("\n////////////////////////////\nFinal license: \n"+license);
+			byte[] licenseByte = new byte[0];
+			try {
+			    licenseByte= license.getBytes("utf-8");
+			} catch (UnsupportedEncodingException e) {
+			    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+			}
+			return licenseByte;
+		    }
+
+		    public static void main(String[] args) {
+			//Schedule a job for the event dispatch thread:
+			//creating and showing this application's GUI.
+			javax.swing.SwingUtilities.invokeLater(new Runnable() {
+			    public void run() {
+				createAndShowGUI();
+			    }
+			});
+		    }
+		 }
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	
+	
+	
+
+	
+
+	
+	
+
+	

@@ -1,0 +1,707 @@
+					
+				Investigando Audio Units en OSX
+
+
+
+				1-Introducción.
+				2-Víctima
+				3-Herramientas.
+				4-Diseccionado.
+
+
+
+	1-Introducción.
+
+	Siguiendo mis investigaciones en el mundo OSx, ha llegado el momento de probar un 
+	plugin de Audio, siempre he tenido curiosidad por saber como hacerlo, no tengo ni
+	idea de como se escriben estos plugins, lenguaje, compilador, si se pueden depurar
+	todo conjeturas, ahora reveladas por el arte del reversing.
+
+	El tipo de plugin a tratar será AU(Audio Unit) es una arquitectura exclusiva de 
+	OSX, y yo diría que está codificado en c++, con un SDK proporcionado por apple, en
+	el código se hace referencia a paths y un SDK.
+
+	Normalmente éstos plugins añaden funcionalidad a un programa, es decir solos no
+	se pueden ejecutar, aunque hay excepciones y algunos son tan completos que se pue-
+	den ejecutar aislados, no es nuestro caso ya que entonces ya tendríamos un progra-
+	ma normal sin ningún aliciente extra.
+
+	Para ejecutar estos plugins necesitaremos un programa base, hay varios:
+
+	-Live Abletton
+	-Logic Audio
+	-Audacity
+	
+	Normalmente estos plugins traen un instalador dejando una estructura de directorios
+	en el siguiente path:
+	
+	/Library/Audio/Plug-Ins/Components
+
+	Y dentro de éste encontraremos directorios con todos los plugins que hayamos insta-
+	lado, veamos lo que contiene nuestro bichito "ABL2"
+
+	Components sylkat$ find ABL2.component/
+	ABL2.component/
+	ABL2.component//Contents
+	ABL2.component//Contents/Info.plist
+	ABL2.component//Contents/MacOS
+	ABL2.component//Contents/MacOS/ABL2
+	ABL2.component//Contents/PkgInfo
+	ABL2.component//Contents/Resources
+	ABL2.component//Contents/Resources/ABL2.rsrc
+	ABL2.component//Contents/Resources/AnalyzeDialog.nib
+	ABL2.component//Contents/Resources/AnalyzeDialog.nib/objects.xib
+	ABL2.component//Contents/Resources/bmp00016.png
+	ABL2.component//Contents/Resources/bmp00017.png
+	ABL2.component//Contents/Resources/bmp00018.png
+	ABL2.component//Contents/Resources/vst2.4Info copy 3.plist
+	Components sylkat$	
+
+						
+	Aquí tenemos pues todo lo necesario, aunque teniendo en cuenta que este directorio
+	pertenece a root, y nosotros ejecutaremos la aplicación como usuario sin privile-
+	gios, la licencia o fichero de configuración se guardará en algún directorio ocul-
+	to dentro del $HOME del usuario.
+
+	Este último apunte sobre el fichero de configuración lo digo porqué yo me dí con
+	un problema que me volvió loco un buen rato, y tuve que buscar donde se había guar-
+	dado el fichero de configuración para borrarlo y dejar un estado limpio en el siste-
+	ma ya que no hay desinstalador.
+
+	El problema vino con una versión anterior del plugin que tenía instalada, y parche-
+	ada con una medicina de.....Dynamics, ehem, pues esta medicina, era un instalador,
+	que no dejaba actualizar a una nueva versión del plugin, TACHAN, si si...al actuali-
+	zar a la última versión de la web e introducir un SN válido, me salía el mensajito
+	de "Este progri ha sido licenciado a: Dynamics", pero al reiniciar la aplicación,
+	siempre volvía a pedir la licencia, como si no fuera válida o algo se me escapase.
+
+	Bien pues, anda si yo....lo estaba haciendo BIEN, el problema es el antiguo crack
+	que ha jodido bien mi sistema, o por lo menos ya no puedo actualizar el plugin.
+	
+	Solución, borrar todo lo relacionado en el disco duro con ABL2, con find por ejem-
+	plo haremos la búsqueda:
+		
+		find . | grep -i abl2
+
+	Vale pues esto es importante porqué sin dejar el sistema limpio yo no conseguí re-
+	gistrar el producto correctamente, por cierto debuggeando el problema vi que 
+	Dynamics como licencia había puesto un "Fuck this" grrrrr.
+
+	Moraleja final a todo esto, mejor no parchear y si se hace cuidadín como se hace
+	no vaya a ser que la líes pardaaa....
+
+
+
+	
+	2-Victima AudioRealism Bass Line 2 (ABL2)
+	
+	Es un sintetizador que emula el sonido de la roland tb-303, según "mi" el mejor
+	de todos los soft que emulan esta máquina, el precio es razonable(unos 80 eurus)
+
+	El lenguaje yo diría que es c++, hay objetos pero no se llaman con mensajes por lo
+	tanto no creo que sea objective c, según file:
+
+		ABL2: Mach-O bundle i386
+
+	Bien tenemos un intel 32bits, compilado supongo que con gcc y con poca seguridad
+	otra vez, algo de ofuscación, un serial dentro del código y estático.
+
+
+
+	
+	3-Herramientas.
+
+	Para desensamblar y fisgonear Hopper o Ida, los 2 hacen lo mismo, quizas Hopper es
+	mas intuitivo porque no tiene tantas opciones y para depurar Gdb.
+
+	Necesitarás un host que ejecute los AU, cuidado porque no todos los hosts manejan
+	correctamente los AU, yo recomendaría Logic Audio, ya sea express o pro.
+
+
+ 
+	
+
+	4-Diseccionado
+	
+	Si abrimos con el disassembler veremos que los nombres de las funciones están ahí,
+	y también muchas strings entre ellas la de chico malo.
+
+	Como no es un objective-c podremos ver las XREF de los métodos y saltar a ellas 
+	con un doble click, es muy fácil llegar a la zona caliente solo saltando por el código.
+
+	Por ejemplo vamos a tracear la cadena de chico malo a traves de XREFS:
+
+db       	"Registration key not found or valid. Please try again or contact support@audiorealism.se.", 0 ; XREF=0x1d75d
+
+	Si clickamos el XREF nos lleva a la rutina de registro, y allí podremos ver la lógica
+	de registro y el algoritmo de comprobación de serial válido.
+
+0001d730 8DBDDCF6FFFF                    lea        edi, dword [ss:ebp-0xd58+var_1076]
+0001d736 897C2404                        mov        dword [ss:esp+0x4], edi
+0001d73a 893424                          mov        dword [ss:esp], esi
+0001d73d E82776FEFF                      call       __Z5ckkeyPKcS0_                       ; ckkey(char const*, char const*)------>YUHUUUUUUU
+0001d742 48                              dec        eax
+0001d743 7465                            je         0x1D7AA
+0001d745 8D8BD33F0500                    lea        ecx, dword [ds:ebx-0x1d6db+0x716AE]   ; "AudioRealism Bass Line 2"
+0001d74b 894C2404                        mov        dword [ss:esp+0x4], ecx
+0001d74f 8DBDE6FAFFFF                    lea        edi, dword [ss:ebp-0xd58+var_2110]
+0001d755 893C24                          mov        dword [ss:esp], edi
+0001d758 E8D7C10A00                      call       imp___jump_table__c2pstrcpy
+0001d75d 8D939D450500                    lea        edx, dword [ds:ebx-0x1d6db+0x71C78]   ; "Registration key not found or valid. Please try again or contact support@audiorealism.se."
+
+	
+	Aquí vemos algo pero que muy sospechoso no?
+
+	En 0x0001d73d se hace un call a una función y dependiendo del retorno se salta chi-
+	co malo.
+	
+	Además a esta función se le pasan 2 argumentos ckkey(char const*, char const*)...
+
+	Ésta es nuestra función de validación de serial "__Z5ckkeyPKcS0_"
+
+	No pongo el listado de esta función porque contiene bastante código ofuscado, pero
+	decir que ahí se encuentra la clave de nuestro problema.
+
+	La función de validación hace diferentes comprobaciones al serial, pero realmente
+	són 4 las que te hacen saltar a chico malo, las demás solo están a modo de ofuscación.
+
+	Primero se recuperan 8 numeros del serial en variables separadas, para ello se llama
+	a sscanf con una cadena de formato "%2x%2x-%2x%2x-%2x%2x-%2x%2x":
+
+00004d7b 8D4DB8                          lea        ecx, dword [ss:ebp-0x98+var_80]
+00004d7e 8D45D4                          lea        eax, dword [ss:ebp-0x98+var_108]
+00004d81 89442424                        mov        dword [ss:esp+0x24], eax
+00004d85 8D7DD0                          lea        edi, dword [ss:ebp-0x98+var_104]
+00004d88 897C2420                        mov        dword [ss:esp+0x20], edi
+00004d8c 8D75CC                          lea        esi, dword [ss:ebp-0x98+var_100]
+00004d8f 8974241C                        mov        dword [ss:esp+0x1C], esi
+00004d93 8D55C8                          lea        edx, dword [ss:ebp-0x98+var_96]
+00004d96 89542418                        mov        dword [ss:esp+0x18], edx
+00004d9a 8D45C4                          lea        eax, dword [ss:ebp-0x98+var_92]
+00004d9d 89442414                        mov        dword [ss:esp+0x14], eax
+00004da1 8D7DC0                          lea        edi, dword [ss:ebp-0x98+var_88]
+00004da4 897C2410                        mov        dword [ss:esp+0x10], edi
+00004da8 8D75BC                          lea        esi, dword [ss:ebp-0x98+var_84]
+00004dab 8974240C                        mov        dword [ss:esp+0xC], esi
+00004daf 894C2408                        mov        dword [ss:esp+0x8], ecx
+00004db3 8D93ADBF0600                    lea        edx, dword [ds:ebx-0x4d7a+0x70D27]    ; "%2x%2x-%2x%2x-%2x%2x-%2x%2x"
+00004db9 89542404                        mov        dword [ss:esp+0x4], edx
+00004dbd 8B450C                          mov        eax, dword [ss:ebp-0x98+arg_4]
+00004dc0 890424                          mov        dword [ss:esp], eax
+00004dc3 E8A24C0C00                      call       imp___jump_table__sscanf              ; Get 8 chunks of serial in format 1122-3344-5566-7788
+
+	Despues hace una suma del nombre, que no sirve para nada:
+
+00004dd5 01FF                            add        edi, edi                              ; XREF=0x4df6
+00004dd7 8B4508                          mov        eax, dword [ss:ebp-0x98+arg_0]
+00004dda 0FB61406                        movzx      edx, byte [ds:esi+eax]
+00004dde 01D7                            add        edi, edx
+00004de0 89F9                            mov        ecx, edi
+00004de2 888BA6A90A00                    mov        byte [ds:ebx-0x4d7a+_cksum], cl
+00004de8 46                              inc        esi
+00004de9 8B4D08                          mov        ecx, dword [ss:ebp-0x98+arg_0]        ; XREF=0x4dd3
+00004dec 890C24                          mov        dword [ss:esp], ecx
+00004def E8A34C0C00                      call       imp___jump_table__strlen
+00004df4 39C6                            cmp        esi, eax
+00004df6 72DD                            jc         0x4DD5
+
+	
+	Acto seguido hace una serie de procesos a las variables y al nombre de la licencia,
+	como veremos después no sirve para nada:
+
+00004df8 8D8B86810800                    lea        ecx, dword [ds:ebx-0x4d7a+_randomBytes]
+00004dfe 0FB69386810800                  movzx      edx, byte [ds:ebx-0x4d7a+_randomBytes]
+00004e05 8B7508                          mov        esi, dword [ss:ebp-0x98+arg_0]
+00004e08 3216                            xor        dl, byte [ds:esi]
+00004e0a 8D83A7A90A00                    lea        eax, dword [ds:ebx-0x4d7a+_keystr]    ; ""
+00004e10 8945A0                          mov        dword [ss:ebp-0x98+var_56], eax
+00004e13 89F8                            mov        eax, edi
+00004e15 31D0                            xor        eax, edx
+00004e17 8883A7A90A00                    mov        byte [ds:ebx-0x4d7a+_keystr], al      ; ""
+00004e1d 0FB64101                        movzx      eax, byte [ds:ecx+0x1]
+00004e21 324601                          xor        al, byte [ds:esi+0x1]
+00004e24 01C2                            add        edx, eax
+00004e26 89D0                            mov        eax, edx
+00004e28 31F8                            xor        eax, edi
+00004e2a 8B75A0                          mov        esi, dword [ss:ebp-0x98+var_56]
+00004e2d 884601                          mov        byte [ds:esi+0x1], al
+00004e30 0FB64102                        movzx      eax, byte [ds:ecx+0x2]
+00004e34 8B7508                          mov        esi, dword [ss:ebp-0x98+arg_0]
+00004e37 324602                          xor        al, byte [ds:esi+0x2]
+00004e3a 01C2                            add        edx, eax
+00004e3c 89D0                            mov        eax, edx
+00004e3e 31F8                            xor        eax, edi
+00004e40 8B75A0                          mov        esi, dword [ss:ebp-0x98+var_56]
+00004e43 884602                          mov        byte [ds:esi+0x2], al
+00004e46 0FB64103                        movzx      eax, byte [ds:ecx+0x3]
+00004e4a 8B7508                          mov        esi, dword [ss:ebp-0x98+arg_0]
+00004e4d 324603                          xor        al, byte [ds:esi+0x3]
+00004e50 01C2                            add        edx, eax
+00004e52 89D0                            mov        eax, edx
+00004e54 31F8                            xor        eax, edi
+00004e56 8B75A0                          mov        esi, dword [ss:ebp-0x98+var_56]
+00004e59 884603                          mov        byte [ds:esi+0x3], al
+00004e5c 0FB64104                        movzx      eax, byte [ds:ecx+0x4]
+00004e60 8B7508                          mov        esi, dword [ss:ebp-0x98+arg_0]
+00004e63 324604                          xor        al, byte [ds:esi+0x4]
+00004e66 01C2                            add        edx, eax
+00004e68 89D0                            mov        eax, edx
+00004e6a 31F8                            xor        eax, edi
+00004e6c 8B75A0                          mov        esi, dword [ss:ebp-0x98+var_56]
+00004e6f 884604                          mov        byte [ds:esi+0x4], al
+00004e72 0FB64105                        movzx      eax, byte [ds:ecx+0x5]
+00004e76 8B7508                          mov        esi, dword [ss:ebp-0x98+arg_0]
+00004e79 324605                          xor        al, byte [ds:esi+0x5]
+00004e7c 01C2                            add        edx, eax
+00004e7e 89D0                            mov        eax, edx
+00004e80 31F8                            xor        eax, edi
+00004e82 8B75A0                          mov        esi, dword [ss:ebp-0x98+var_56]
+00004e85 884605                          mov        byte [ds:esi+0x5], al
+00004e88 0FB64106                        movzx      eax, byte [ds:ecx+0x6]
+00004e8c 8B7508                          mov        esi, dword [ss:ebp-0x98+arg_0]
+00004e8f 324606                          xor        al, byte [ds:esi+0x6]
+00004e92 01C2                            add        edx, eax
+00004e94 89D0                            mov        eax, edx
+00004e96 31F8                            xor        eax, edi
+00004e98 8B75A0                          mov        esi, dword [ss:ebp-0x98+var_56]       ; XREF=0xb092
+00004e9b 884606                          mov        byte [ds:esi+0x6], al
+00004e9e 0FB64107                        movzx      eax, byte [ds:ecx+0x7]
+00004ea2 8B4D08                          mov        ecx, dword [ss:ebp-0x98+arg_0]
+00004ea5 324107                          xor        al, byte [ds:ecx+0x7]
+00004ea8 01D0                            add        eax, edx
+00004eaa 31F8                            xor        eax, edi
+00004eac 884607                          mov        byte [ds:esi+0x7], al
+
+	Llegados aquí vemos que depende de como darle la vuelta al proceso del serial
+	va a ser difícil para mi porqué no tengo mucha experiencia en keygens, y uno
+	se imagina métodos esotéricos que habrá utilizado el desarrollador, nada
+	mas lejos, el desarrollador prefiere crear mucha paja y luego poner la validación
+	en 20 instrucciones.
+
+	Este método de protección, y lo digo por experiencia en Osx no funciona en abso-
+	luto, el poner un montón de código que no hace NADA, pensando que te puedes perder
+	en el mar, si es posible pero hecho con un poco de gracia.
+
+	En los disassemblers utilizados IDA y Hopper, te muestran los saltos con lineas
+	y puedes ver el flujo de la aplicacion y hacerte una idea de por donde van los
+	tiros muy fácilmente.
+
+	Cuando ves muuuucho código en la rutina de validación puede ayudar un poco, después
+	de haberle pegado un buen repaso, comenzar desde atrás, desde el return.
+
+	Verificar que es lo que tiene que devolver y porque no lo devuelve, dicho así
+	parece incluso mas fácil teniendo en cuenta que estas rutinas siempre intentan
+	despistar con bucles y llamadas a otras funciones que hacen cosas incoherentes....
+
+	Bien miremos el final del código y sabiendo que el resultado correcto debe
+	ser 1 y lo deja en EAX, analicemos el flujo desde el return:
+
+00004fc9 89BB86820800                    mov        dword [ds:ebx-0x4d7a+__ZL8randSeed], edi ; XREF=0x4f6c, 0x503f, 0x5091, 0x50e7
+00004fcf BA01000000                      mov        edx, 0x1
+00004fd4 EB05                            jmp        0x4FDB
+00004fd6 BAFDFFFFFF                      mov        edx, 0xFFFFFFFD                       ; XREF=0x4f7e, 0x4f8a, 0x4f93, 0x4f9c, 0x4fa5, 0x4fae, ...
+00004fdb 89D0                            mov        eax, edx                              ; XREF=0x4fd4, 0x4fc5
+00004fdd 81C48C000000                    add        esp, 0x8C
+00004fe3 5B                              pop        ebx
+00004fe4 5E                              pop        esi
+00004fe5 5F                              pop        edi
+00004fe6 C9                              leave      
+00004fe7 C3                              ret        
+
+
+	Aquí podemos ver muuuucho si tenemos ojos, coquito y las cosas claras, los XREF nos
+	dan una gran pista, y sabiendo que debemos retornar 1 en eax.....
+
+	Bien está claro que en 0x00004fd6 caes cuando no ha pasado la validación y saltando a
+	0x00004fc9 es chico bueno porqué acabas pasando el valor 1 a edx y luego a eax ;)
+
+        Todas estas conclusiones estan basadas en XREF ya que nos indica que se hace referencia
+	en el código y en este caso son referencias de call a esta dirección.
+
+	Vamos a ver la llamada a chico bueno desde donde se hace en esta función, y tambien unas
+	instrucciones antes jejejej, damos un doble click al XREF=0x4f6c y:
+
+00004eaf 8D7DD8                          lea        edi, dword [ss:ebp-0x98+var_112]
+00004eb2 8D4DE4                          lea        ecx, dword [ss:ebp-0x98+var_124]
+00004eb5 894C2414                        mov        dword [ss:esp+0x14], ecx
+00004eb9 8D45E0                          lea        eax, dword [ss:ebp-0x98+var_120]
+00004ebc 89442410                        mov        dword [ss:esp+0x10], eax
+00004ec0 8D55DC                          lea        edx, dword [ss:ebp-0x98+var_116]
+00004ec3 8954240C                        mov        dword [ss:esp+0xC], edx
+00004ec7 897C2408                        mov        dword [ss:esp+0x8], edi
+00004ecb 8DB3C9BF0600                    lea        esi, dword [ds:ebx-0x4d7a+0x70D43]    ; " %x-%x-%x-%x "
+00004ed1 89742404                        mov        dword [ss:esp+0x4], esi
+00004ed5 8B4D0C                          mov        ecx, dword [ss:ebp-0x98+arg_4]
+00004ed8 890C24                          mov        dword [ss:esp], ecx
+00004edb E88A4B0C00                      call       imp___jump_table__sscanf
+00004ee0 C783868208006FDD0100            mov        dword [ds:ebx-0x4d7a+__ZL8randSeed], 0x1DD6F
+00004eea 8B45D8                          mov        eax, dword [ss:ebp-0x98+var_112]
+00004eed 8945A4                          mov        dword [ss:ebp-0x98+var_60], eax
+00004ef0 8B55DC                          mov        edx, dword [ss:ebp-0x98+var_116]
+00004ef3 8955A8                          mov        dword [ss:ebp-0x98+var_64], edx
+00004ef6 8B7DE0                          mov        edi, dword [ss:ebp-0x98+var_120]
+00004ef9 897DAC                          mov        dword [ss:ebp-0x98+var_68], edi
+00004efc 8B75E4                          mov        esi, dword [ss:ebp-0x98+var_124]
+00004eff 8975B0                          mov        dword [ss:ebp-0x98+var_72], esi
+00004f02 C745B400000000                  mov        dword [ss:ebp-0x98+var_76], 0x0
+00004f09 BF6FDD0100                      mov        edi, 0x1DD6F
+00004f0e 69D73584B30B                    imul       edx, edi, 0xBB38435                   ; XREF=0x50fc
+00004f14 81C26B631936                    add        edx, 0x3619636B
+00004f1a 69F23584B30B                    imul       esi, edx, 0xBB38435
+00004f20 8D8E6B631936                    lea        ecx, dword [ds:esi+0x3619636B]
+00004f26 69F93584B30B                    imul       edi, ecx, 0xBB38435
+00004f2c 8DB76B631936                    lea        esi, dword [ds:edi+0x3619636B]
+00004f32 69C63584B30B                    imul       eax, esi, 0xBB38435
+00004f38 8DB86B631936                    lea        edi, dword [ds:eax+0x3619636B]
+00004f3e C1EA10                          shr        edx, 0x10
+00004f41 3955A4                          cmp        dword [ss:ebp-0x98+var_60], edx
+00004f44 0F859E000000                    jne        0x4FE8
+00004f4a C1E910                          shr        ecx, 0x10
+00004f4d 394DA8                          cmp        dword [ss:ebp-0x98+var_64], ecx
+00004f50 0F8592000000                    jne        0x4FE8
+00004f56 C1EE10                          shr        esi, 0x10
+00004f59 3975AC                          cmp        dword [ss:ebp-0x98+var_68], esi
+00004f5c 0F8586000000                    jne        0x4FE8
+00004f62 89F9                            mov        ecx, edi
+00004f64 C1E910                          shr        ecx, 0x10
+00004f67 394DB0                          cmp        dword [ss:ebp-0x98+var_72], ecx
+00004f6a 757C                            jne        0x4FE8
+00004f6c EB5B                            jmp        0x4FC9
+
+
+
+	Al final del código está el JMP a chico bueno, por lo tanto deberemos llegar allí sea como sea.
+
+	Analicemos otra vez de atrás para adelante, es decir desde el último jmp, y veamos cuando
+	no llegamos y porqué al jmp, realmente es fácil, solo tenemos 4 posibilidades jejejej
+	hay 4 jne que nos la lían un poco para nuestros propósitos.
+
+	Se podría resumir toda la validación en estas lineas:
+
+00004f3e C1EA10                          shr        edx, 0x10
+00004f41 3955A4                          cmp        dword [ss:ebp-0x98+var_60], edx
+00004f44 0F859E000000                    jne        0x4FE8
+00004f4a C1E910                          shr        ecx, 0x10
+00004f4d 394DA8                          cmp        dword [ss:ebp-0x98+var_64], ecx
+00004f50 0F8592000000                    jne        0x4FE8
+00004f56 C1EE10                          shr        esi, 0x10
+00004f59 3975AC                          cmp        dword [ss:ebp-0x98+var_68], esi
+00004f5c 0F8586000000                    jne        0x4FE8
+00004f62 89F9                            mov        ecx, edi
+00004f64 C1E910                          shr        ecx, 0x10
+00004f67 394DB0                          cmp        dword [ss:ebp-0x98+var_72], ecx
+00004f6a 757C                            jne        0x4FE8
+00004f6c EB5B                            jmp        0x4FC9
+
+	
+	Bien vemos que se comparan registros con variables de la función, mirando el código
+	se puede observar que estas variables son los 4 numeros del serial, se han recuperado
+	llamando a sscanf con formato "%2x-%2x-%2x-%2x"
+
+
+00004eaf 8D7DD8                          lea        edi, dword [ss:ebp-0x98+var_112]
+00004eb2 8D4DE4                          lea        ecx, dword [ss:ebp-0x98+var_124]
+00004eb5 894C2414                        mov        dword [ss:esp+0x14], ecx
+00004eb9 8D45E0                          lea        eax, dword [ss:ebp-0x98+var_120]
+00004ebc 89442410                        mov        dword [ss:esp+0x10], eax
+00004ec0 8D55DC                          lea        edx, dword [ss:ebp-0x98+var_116]
+00004ec3 8954240C                        mov        dword [ss:esp+0xC], edx
+00004ec7 897C2408                        mov        dword [ss:esp+0x8], edi
+00004ecb 8DB3C9BF0600                    lea        esi, dword [ds:ebx-0x4d7a+0x70D43]    ; " %x-%x-%x-%x "
+00004ed1 89742404                        mov        dword [ss:esp+0x4], esi
+00004ed5 8B4D0C                          mov        ecx, dword [ss:ebp-0x98+arg_4]
+00004ed8 890C24                          mov        dword [ss:esp], ecx
+00004edb E88A4B0C00                      call       imp___jump_table__sscanf	
+
+
+	La cosa se va aclarando, se comparan los numeros de nuestro serial por separado
+	contra diferentes registros, de donde salen los valores de los registros implicados?
+
+	Los registros son edx, ecx, esi, y antes de hacer las comprobaciones se puede observar
+	de donde se obtienen los valores:
+
+00004f09 BF6FDD0100                      mov        edi, 0x1DD6F	
+00004f0e 69D73584B30B                    imul       edx, edi, 0xBB38435                   ; XREF=0x50fc
+00004f14 81C26B631936                    add        edx, 0x3619636B
+00004f1a 69F23584B30B                    imul       esi, edx, 0xBB38435
+00004f20 8D8E6B631936                    lea        ecx, dword [ds:esi+0x3619636B]
+00004f26 69F93584B30B                    imul       edi, ecx, 0xBB38435
+00004f2c 8DB76B631936                    lea        esi, dword [ds:edi+0x3619636B]
+00004f32 69C63584B30B                    imul       eax, esi, 0xBB38435
+00004f38 8DB86B631936                    lea        edi, dword [ds:eax+0x3619636B]
+00004f3e C1EA10                          shr        edx, 0x10
+
+	Estas instrucciones se ejecutan justo antes de las comparaciones y si nos fijamos podemos
+	ver que aquí se obtienen los valores de nuestros registros(edx, ecx, esi) a partir de
+	un valor harcodeado, 0x1dd6f.
+
+	Como soy muuuuy vago y no quiero calcular....decido sacar el Gdb y mirar cuales son esos
+	valores, pondremos breaks points en esta zona y veremos que ya tenemos los valores correctos.
+
+	Para depurar el plugin deberemos attacharnos al Logic con la opción --pid de gdb.
+
+		sylkat$ gdb --pid=3764
+		GNU gdb 6.3.50-20050815 (Apple version gdb-1752) (Sat Jan 28 03:02:46 UTC 2012)
+		Copyright 2004 Free Software Foundation, Inc.
+		GDB is free software, covered by the GNU General Public License, and you are
+		welcome to change it and/or distribute copies of it under certain conditions.
+		Type "show copying" to see the conditions.
+		There is absolutely no warranty for GDB.  Type "show warranty" for details.
+		This GDB was configured as "x86_64-apple-darwin".
+		/Library/Audio/Plug-Ins/Components/ABL2.component/Contents/MacOS/3764: No such file or directory
+		Attaching to process 3764.
+		Reading symbols for shared libraries . done
+		Reading symbols for shared libraries ................................................................................................................................................................................................................................................................................................................ done
+		0x981fcc22 in mach_msg_trap ()	
+
+	Ahora nos interesa entrar en la zona de memoria de nuestro plugin, las direcciones mostradas en 
+	Ida o el hopper no són las correctas, y no podremos acceder a ellas ya que Logic ha
+	reasignado la memoria en otras posiciones.
+
+	Vamos a lanzar el plugin desde el Logic, y cuando nos muestre la pantalla de registro haremos
+	un break con ctrl+c, entonces miramos el backtrace para saber desde donde hemos llegado:
+
+
+
+gdb $ bt
+#0  0x981fc1f6 in mach_msg ()
+#1  0x93039914 in _CGSGetOnScreenWindowCount ()
+#2  0x93039844 in CGSGetOnScreenWindowCount ()
+#3  0x972b5ee4 in NSCountWindowsForContext ()
+#4  0x007c7fa5 in TraceOutContainer<CEvs> ()
+#5  0x00612b2e in TraceOutContainer<CEvs> ()
+#6  0x00612f0b in TraceOutContainer<CEvs> ()
+#7  0x00612f6b in TraceOutContainer<CEvs> ()
+#8  0x00631698 in TraceOutContainer<CEvs> ()
+#9  0x001c6568 in TraceOutContainer<CEvs> ()
+#10 0x0057f308 in TraceOutContainer<CEvs> ()
+#11 0x0056cb2b in TraceOutContainer<CEvs> ()
+#12 0x001c88a8 in TraceOutContainer<CEvs> ()
+#13 0x006324a6 in TraceOutContainer<CEvs> ()
+#14 0x001cbd0b in TraceOutContainer<CEvs> ()
+#15 0x00614a57 in TraceOutContainer<CEvs> ()
+#16 0x9b214bab in __NSFireTimer ()
+#17 0x960c32a6 in __CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__ ()
+#18 0x960c2c37 in __CFRunLoopDoTimer ()
+#19 0x960a1cd0 in __CFRunLoopRun ()
+#20 0x960a11dc in CFRunLoopRunSpecific ()
+#21 0x960a1088 in CFRunLoopRunInMode ()
+#22 0x985b5723 in RunCurrentEventLoopInMode ()
+#23 0x987526c1 in GetNextEventMatchingMask ()
+#24 0x98752a27 in WNEInternal ()
+#25 0x98751cf4 in WaitNextEvent ()
+#26 0x98732602 in ModalDialog ()
+#27 0x9873a4c1 in RunStandardAlert ()
+#28 0x98738d8b in StandardAlert ()
+#29 0x2a594798 in Vst303Gui::Registration ()----------------------------->ULTIMO SALTO
+#30 0x2a598641 in Vst303Gui::idle ()
+#31 0x2a5c10f5 in AEffGUIEditor::doIdleStuffNoEventLoop ()
+#32 0x985d0ee1 in TimerVector ()
+#33 0x960c32a6 in __CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__ ()
+#34 0x960c2c37 in __CFRunLoopDoTimer ()
+#35 0x960a1cd0 in __CFRunLoopRun ()
+#36 0x960a11dc in CFRunLoopRunSpecific ()
+#37 0x960a1088 in CFRunLoopRunInMode ()
+#38 0x985b5723 in RunCurrentEventLoopInMode ()
+#39 0x985bc9b6 in ReceiveNextEventCommon ()
+#40 0x985bc8fa in BlockUntilNextEventMatchingListInMode ()
+#41 0x972b10d8 in _DPSNextEvent ()
+#42 0x972b0942 in -[NSApplication nextEventMatchingMask:untilDate:inMode:dequeue:] ()
+#43 0x972accb1 in -[NSApplication run] ()
+#44 0x00fcd42b in NSProApplicationMain ()
+#45 0x0002b1c5 in DummyConnection::DummyConnection ()
+
+
+
+	Vemos que 0x2a594798 es una pista considerable, es la función de Registro y allí veremos
+	esto:
+
+gdb $ disas _ZN9Vst303Gui12RegistrationEv
+Dump of assembler code for function _ZN9Vst303Gui12RegistrationEv:
+0x2a5946c4 <_ZN9Vst303Gui12RegistrationEv+0>:	push   ebp
+0x2a5946c5 <_ZN9Vst303Gui12RegistrationEv+1>:	mov    ebp,esp
+0x2a5946c7 <_ZN9Vst303Gui12RegistrationEv+3>:	sub    esp,0xd58
+0x2a5946cd <_ZN9Vst303Gui12RegistrationEv+9>:	mov    DWORD PTR [ebp-0xc],ebx
+0x2a5946d0 <_ZN9Vst303Gui12RegistrationEv+12>:	mov    DWORD PTR [ebp-0x8],esi
+0x2a5946d3 <_ZN9Vst303Gui12RegistrationEv+15>:	mov    DWORD PTR [ebp-0x4],edi
+0x2a5946d6 <_ZN9Vst303Gui12RegistrationEv+18>:	call   0x2a5946db <_ZN9Vst303Gui12RegistrationEv+23>
+0x2a5946db <_ZN9Vst303Gui12RegistrationEv+23>:	pop    ebx
+0x2a5946dc <_ZN9Vst303Gui12RegistrationEv+24>:	mov    ecx,DWORD PTR [ebp+0x8]
+0x2a5946df <_ZN9Vst303Gui12RegistrationEv+27>:	mov    DWORD PTR [ecx+0x3334],0x0
+0x2a5946e9 <_ZN9Vst303Gui12RegistrationEv+37>:	mov    edx,DWORD PTR [ebx+0xab92d]
+0x2a5946ef <_ZN9Vst303Gui12RegistrationEv+43>:	mov    DWORD PTR [ebp-0xd30],edx
+0x2a5946f5 <_ZN9Vst303Gui12RegistrationEv+49>:	mov    eax,DWORD PTR [ebx+0xab931]
+0x2a5946fb <_ZN9Vst303Gui12RegistrationEv+55>:	mov    DWORD PTR [ebp-0xd2c],eax
+0x2a594701 <_ZN9Vst303Gui12RegistrationEv+61>:	mov    DWORD PTR [esp+0x4],edx
+0x2a594705 <_ZN9Vst303Gui12RegistrationEv+65>:	mov    DWORD PTR [esp],eax
+0x2a594708 <_ZN9Vst303Gui12RegistrationEv+68>:	call   0x2a57bd69 <_Z5ckkeyPKcS0_>
+0x2a59470d <_ZN9Vst303Gui12RegistrationEv+73>:	dec    eax
+0x2a59470e <_ZN9Vst303Gui12RegistrationEv+74>:	je     0x2a594868 <_ZN9Vst303Gui12RegistrationEv+420>
+0x2a594714 <_ZN9Vst303Gui12RegistrationEv+80>:	lea    esi,[ebp-0xd24]
+0x2a59471a <_ZN9Vst303Gui12RegistrationEv+86>:	mov    DWORD PTR [esp],esi
+0x2a59471d <_ZN9Vst303Gui12RegistrationEv+89>:	call   0x2a57f1be <_Z9RegDialogP10reg_info_t>
+0x2a594722 <_ZN9Vst303Gui12RegistrationEv+94>:	mov    edi,DWORD PTR [ebp-0x524]
+0x2a594728 <_ZN9Vst303Gui12RegistrationEv+100>:	test   edi,edi
+0x2a59472a <_ZN9Vst303Gui12RegistrationEv+102>:	je     0x2a594868 <_ZN9Vst303Gui12RegistrationEv+420>
+0x2a594730 <_ZN9Vst303Gui12RegistrationEv+108>:	lea    edi,[ebp-0x924]
+0x2a594736 <_ZN9Vst303Gui12RegistrationEv+114>:	mov    DWORD PTR [esp+0x4],edi
+0x2a59473a <_ZN9Vst303Gui12RegistrationEv+118>:	mov    DWORD PTR [esp],esi
+0x2a59473d <_ZN9Vst303Gui12RegistrationEv+121>:	call   0x2a57bd69 <_Z5ckkeyPKcS0_>
+0x2a594742 <_ZN9Vst303Gui12RegistrationEv+126>:	dec    eax
+0x2a594743 <_ZN9Vst303Gui12RegistrationEv+127>:	je     0x2a5947aa <_ZN9Vst303Gui12RegistrationEv+230>
+0x2a594745 <_ZN9Vst303Gui12RegistrationEv+129>:	lea    ecx,[ebx+0x53fd3]
+0x2a59474b <_ZN9Vst303Gui12RegistrationEv+135>:	mov    DWORD PTR [esp+0x4],ecx
+0x2a59474f <_ZN9Vst303Gui12RegistrationEv+139>:	lea    edi,[ebp-0x51a]
+0x2a594755 <_ZN9Vst303Gui12RegistrationEv+145>:	mov    DWORD PTR [esp],edi
+0x2a594758 <_ZN9Vst303Gui12RegistrationEv+148>:	call   0x2a640934 <dyld_stub_c2pstrcpy>
+0x2a59475d <_ZN9Vst303Gui12RegistrationEv+153>:	lea    edx,[ebx+0x5459d]
+0x2a594763 <_ZN9Vst303Gui12RegistrationEv+159>:	mov    DWORD PTR [esp+0x4],edx
+0x2a594767 <_ZN9Vst303Gui12RegistrationEv+163>:	lea    esi,[ebp-0x11a]
+0x2a59476d <_ZN9Vst303Gui12RegistrationEv+169>:	mov    DWORD PTR [esp],esi
+0x2a594770 <_ZN9Vst303Gui12RegistrationEv+172>:	call   0x2a640934 <dyld_stub_c2pstrcpy>
+0x2a594775 <_ZN9Vst303Gui12RegistrationEv+177>:	lea    eax,[ebp-0x1a]
+0x2a594778 <_ZN9Vst303Gui12RegistrationEv+180>:	mov    DWORD PTR [esp+0x10],eax
+0x2a59477c <_ZN9Vst303Gui12RegistrationEv+184>:	mov    DWORD PTR [esp+0xc],0x0
+0x2a594784 <_ZN9Vst303Gui12RegistrationEv+192>:	mov    DWORD PTR [esp+0x8],esi
+0x2a594788 <_ZN9Vst303Gui12RegistrationEv+196>:	mov    DWORD PTR [esp+0x4],edi
+0x2a59478c <_ZN9Vst303Gui12RegistrationEv+200>:	mov    DWORD PTR [esp],0x0
+0x2a594793 <_ZN9Vst303Gui12RegistrationEv+207>:	call   0x2a6407e5 <dyld_stub_StandardAlert>
+0x2a594798 <_ZN9Vst303Gui12RegistrationEv+212>:	mov    esi,DWORD PTR [ebp+0x8]
+0x2a59479b <_ZN9Vst303Gui12RegistrationEv+215>:	mov    DWORD PTR [esi+0x3334],0x1
+0x2a5947a5 <_ZN9Vst303Gui12RegistrationEv+225>:	jmp    0x2a594868 <_ZN9Vst303Gui12RegistrationEv+420>
+0x2a5947aa <_ZN9Vst303Gui12RegistrationEv+230>:	mov    DWORD PTR [esp+0x4],esi
+0x2a5947ae <_ZN9Vst303Gui12RegistrationEv+234>:	mov    ecx,DWORD PTR [ebp-0xd2c]
+0x2a5947b4 <_ZN9Vst303Gui12RegistrationEv+240>:	mov    DWORD PTR [esp],ecx
+0x2a5947b7 <_ZN9Vst303Gui12RegistrationEv+243>:	call   0x2a640a88 <dyld_stub_strcpy>
+0x2a5947bc <_ZN9Vst303Gui12RegistrationEv+248>:	mov    DWORD PTR [esp+0x4],edi
+0x2a5947c0 <_ZN9Vst303Gui12RegistrationEv+252>:	mov    eax,DWORD PTR [ebp-0xd30]
+0x2a5947c6 <_ZN9Vst303Gui12RegistrationEv+258>:	mov    DWORD PTR [esp],eax
+0x2a5947c9 <_ZN9Vst303Gui12RegistrationEv+261>:	call   0x2a640a88 <dyld_stub_strcpy>
+0x2a5947ce <_ZN9Vst303Gui12RegistrationEv+266>:	mov    DWORD PTR [esp+0x4],edi
+0x2a5947d2 <_ZN9Vst303Gui12RegistrationEv+270>:	mov    DWORD PTR [esp],esi
+0x2a5947d5 <_ZN9Vst303Gui12RegistrationEv+273>:	call   0x2a57b51f <_Z8calc_keyPKcS0_>
+0x2a5947da <_ZN9Vst303Gui12RegistrationEv+278>:	mov    edx,DWORD PTR [ebp+0x8]
+0x2a5947dd <_ZN9Vst303Gui12RegistrationEv+281>:	mov    ecx,DWORD PTR [edx+0x24]
+0x2a5947e0 <_ZN9Vst303Gui12RegistrationEv+284>:	add    ecx,0xb0
+0x2a5947e6 <_ZN9Vst303Gui12RegistrationEv+290>:	mov    DWORD PTR [esp+0x4],ecx
+0x2a5947ea <_ZN9Vst303Gui12RegistrationEv+294>:	lea    esi,[ebp-0x51a]
+0x2a5947f0 <_ZN9Vst303Gui12RegistrationEv+300>:	mov    DWORD PTR [esp],esi
+0x2a5947f3 <_ZN9Vst303Gui12RegistrationEv+303>:	call   0x2a640a88 <dyld_stub_strcpy>
+0x2a5947f8 <_ZN9Vst303Gui12RegistrationEv+308>:	mov    DWORD PTR [esp],esi
+0x2a5947fb <_ZN9Vst303Gui12RegistrationEv+311>:	call   0x2a640a97 <dyld_stub_strlen>
+0x2a594800 <_ZN9Vst303Gui12RegistrationEv+316>:	lea    eax,[esi+eax]
+0x2a594803 <_ZN9Vst303Gui12RegistrationEv+319>:	mov    DWORD PTR [eax],0x326c6241
+0x2a594809 <_ZN9Vst303Gui12RegistrationEv+325>:	mov    DWORD PTR [eax+0x4],0x79656b2e
+0x2a594810 <_ZN9Vst303Gui12RegistrationEv+332>:	mov    BYTE PTR [eax+0x8],0x0
+0x2a594814 <_ZN9Vst303Gui12RegistrationEv+336>:	mov    DWORD PTR [esp],esi
+0x2a594817 <_ZN9Vst303Gui12RegistrationEv+339>:	call   0x2a57b61d <_Z5wrkeyPKc>
+0x2a59481c <_ZN9Vst303Gui12RegistrationEv+344>:	mov    DWORD PTR [esp],esi
+0x2a59481f <_ZN9Vst303Gui12RegistrationEv+347>:	call   0x2a57b841 <_Z5rdkeyPKc>
+0x2a594824 <_ZN9Vst303Gui12RegistrationEv+352>:	mov    edi,DWORD PTR [ebp+0x8]
+0x2a594827 <_ZN9Vst303Gui12RegistrationEv+355>:	mov    ecx,DWORD PTR [edi+0x24]
+0x2a59482a <_ZN9Vst303Gui12RegistrationEv+358>:	mov    DWORD PTR [ecx+0x1a528],0x1
+0x2a594834 <_ZN9Vst303Gui12RegistrationEv+368>:	mov    edx,DWORD PTR [ebp-0xd2c]
+0x2a59483a <_ZN9Vst303Gui12RegistrationEv+374>:	mov    DWORD PTR [esp+0x8],edx
+0x2a59483e <_ZN9Vst303Gui12RegistrationEv+378>:	lea    eax,[ebx+0x545f9]
+0x2a594844 <_ZN9Vst303Gui12RegistrationEv+384>:	mov    DWORD PTR [esp+0x4],eax
+0x2a594848 <_ZN9Vst303Gui12RegistrationEv+388>:	lea    edi,[ebp-0x11a]
+0x2a59484e <_ZN9Vst303Gui12RegistrationEv+394>:	mov    DWORD PTR [esp],edi
+0x2a594851 <_ZN9Vst303Gui12RegistrationEv+397>:	call   0x2a640a60 <dyld_stub_sprintf>
+0x2a594856 <_ZN9Vst303Gui12RegistrationEv+402>:	lea    esi,[ebx+0x5464b]
+0x2a59485c <_ZN9Vst303Gui12RegistrationEv+408>:	mov    DWORD PTR [esp+0x4],esi
+0x2a594860 <_ZN9Vst303Gui12RegistrationEv+412>:	mov    DWORD PTR [esp],edi
+0x2a594863 <_ZN9Vst303Gui12RegistrationEv+415>:	call   0x2a58f24c <_Z10myAlertBoxPcS_>
+0x2a594868 <_ZN9Vst303Gui12RegistrationEv+420>:	mov    ebx,DWORD PTR [ebp-0xc]
+0x2a59486b <_ZN9Vst303Gui12RegistrationEv+423>:	mov    esi,DWORD PTR [ebp-0x8]
+0x2a59486e <_ZN9Vst303Gui12RegistrationEv+426>:	mov    edi,DWORD PTR [ebp-0x4]
+0x2a594871 <_ZN9Vst303Gui12RegistrationEv+429>:	leave  
+0x2a594872 <_ZN9Vst303Gui12RegistrationEv+430>:	ret    
+0x2a594873 <_ZN9Vst303Gui12RegistrationEv+431>:	nop   
+
+
+
+	Tenemos la función de registro, y las direcciones de memoria "reallocadas" por Logic
+	y nosotros ya sabemos entonces que la call a la función objetivo de validación está en:
+
+		0x2a594708 <_ZN9Vst303Gui12RegistrationEv+68>:  call   0x2a57bd69 <_Z5ckkeyPKcS0_>
+
+	Podemos hacer un disas de esta función y mirar donde poner el bp necesario:
+
+		0x2a57bf09 <_Z5ckkeyPKcS0_+416>:	mov    edi,0x1dd6f
+	
+	Bien ahora ya solo queda ir examinando la memoria justo antes de cada comparación:
+
+############################# 1 Numero Serial: 0xc646 ################################################
+db $ ni
+0x2a57bf41 in ckkey ()
+3: /a $eax = 0x325fa368 <__read4_3d_ff_normalized_linear_clamp_none_unorm8_bgra_SSE4_1+392>
+2: x/6i $pc
+0x2a57bf41 <_Z5ckkeyPKcS0_+472>:	cmp    DWORD PTR [ebp-0x5c],edx
+0x2a57bf44 <_Z5ckkeyPKcS0_+475>:	jne    0x2a57bfe8 <_Z5ckkeyPKcS0_+639>
+0x2a57bf4a <_Z5ckkeyPKcS0_+481>:	shr    ecx,0x10
+0x2a57bf4d <_Z5ckkeyPKcS0_+484>:	cmp    DWORD PTR [ebp-0x58],ecx
+0x2a57bf50 <_Z5ckkeyPKcS0_+487>:	jne    0x2a57bfe8 <_Z5ckkeyPKcS0_+639>
+0x2a57bf56 <_Z5ckkeyPKcS0_+493>:	shr    esi,0x10
+1: x/i $pc  0x2a57bf41 <_Z5ckkeyPKcS0_+472>:	cmp    DWORD PTR [ebp-0x5c],edx
+gdb $ info reg edx
+edx            0xc646	0xc646 -----------> 1 Numero serial
+
+############################# 2 Numero Serial: 0x7692 ################################################
+gdb $ ni
+0x2a57bf4d in ckkey ()
+3: /a $eax = 0x325fa368 <__read4_3d_ff_normalized_linear_clamp_none_unorm8_bgra_SSE4_1+392>
+2: x/6i $pc
+0x2a57bf4d <_Z5ckkeyPKcS0_+484>:	cmp    DWORD PTR [ebp-0x58],ecx
+0x2a57bf50 <_Z5ckkeyPKcS0_+487>:	jne    0x2a57bfe8 <_Z5ckkeyPKcS0_+639>
+0x2a57bf56 <_Z5ckkeyPKcS0_+493>:	shr    esi,0x10
+0x2a57bf59 <_Z5ckkeyPKcS0_+496>:	cmp    DWORD PTR [ebp-0x54],esi
+0x2a57bf5c <_Z5ckkeyPKcS0_+499>:	jne    0x2a57bfe8 <_Z5ckkeyPKcS0_+639>
+0x2a57bf62 <_Z5ckkeyPKcS0_+505>:	mov    ecx,edi
+1: x/i $pc  0x2a57bf4d <_Z5ckkeyPKcS0_+484>:	cmp    DWORD PTR [ebp-0x58],ecx
+gdb $ info reg ecx
+ecx            0x7692	0x7692 -----------> 2 Numero serial
+
+############################# 3 Numero Serial: 0xd2d6 ################################################
+gdb $ ni
+0x2a57bf59 in ckkey ()
+3: /a $eax = 0x325fa368 <__read4_3d_ff_normalized_linear_clamp_none_unorm8_bgra_SSE4_1+392>
+2: x/6i $pc
+0x2a57bf59 <_Z5ckkeyPKcS0_+496>:	cmp    DWORD PTR [ebp-0x54],esi
+0x2a57bf5c <_Z5ckkeyPKcS0_+499>:	jne    0x2a57bfe8 <_Z5ckkeyPKcS0_+639>
+0x2a57bf62 <_Z5ckkeyPKcS0_+505>:	mov    ecx,edi
+0x2a57bf64 <_Z5ckkeyPKcS0_+507>:	shr    ecx,0x10
+0x2a57bf67 <_Z5ckkeyPKcS0_+510>:	cmp    DWORD PTR [ebp-0x50],ecx
+0x2a57bf6a <_Z5ckkeyPKcS0_+513>:	jne    0x2a57bfe8 <_Z5ckkeyPKcS0_+639>
+1: x/i $pc  0x2a57bf59 <_Z5ckkeyPKcS0_+496>:	cmp    DWORD PTR [ebp-0x54],esi
+gdb $ info reg esi
+esi            0xd2d6	0xd2d6 -----------> 3 Numero serial
+
+############################# 4 Numero Serial: 0x6879 ################################################
+gdb $ 
+0x2a57bf67 in ckkey ()
+3: /a $eax = 0x325fa368 <__read4_3d_ff_normalized_linear_clamp_none_unorm8_bgra_SSE4_1+392>
+2: x/6i $pc
+0x2a57bf67 <_Z5ckkeyPKcS0_+510>:	cmp    DWORD PTR [ebp-0x50],ecx
+0x2a57bf6a <_Z5ckkeyPKcS0_+513>:	jne    0x2a57bfe8 <_Z5ckkeyPKcS0_+639>
+0x2a57bf6c <_Z5ckkeyPKcS0_+515>:	jmp    0x2a57bfc9 <_Z5ckkeyPKcS0_+608>
+0x2a57bf6e <_Z5ckkeyPKcS0_+517>:	mov    DWORD PTR [ebx+0x88286],edi
+0x2a57bf74 <_Z5ckkeyPKcS0_+523>:	movzx  edx,BYTE PTR [ebx+0xaa9a7]
+0x2a57bf7b <_Z5ckkeyPKcS0_+530>:	cmp    edx,DWORD PTR [ebp-0x48]
+1: x/i $pc  0x2a57bf67 <_Z5ckkeyPKcS0_+510>:	cmp    DWORD PTR [ebp-0x50],ecx
+gdb $ info reg ecx
+ecx            0x6879	0x6879 -----------> 4 Numero serial
+
+
+		
+      ###########################
+      #	SN:c646-7692-d2d6-6879  #
+      ###########################
+
+
+
+	Pues ya hemos visto como pescar un serial válido con gdb, está hardcodeado
+	por lo tanto da igual el user que pongamos..
+
+	Un saludo a CLS y tod@ el mundo interesado en estos temas ;)
+
+
