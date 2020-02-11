@@ -1,0 +1,556 @@
+     ___       __       __________   ___                                                              
+    /   \     |  |     |   ____\  \ /  /                                                              
+   /  ^  \    |  |     |  |__   \  V  /   ______                                                      
+  /  /_\  \   |  |     |   __|   >   <   |______|                                                     
+ /  _____  \  |  `----.|  |____ /  .  \                                                               
+/__/     \__\ |_______||_______/__/ \__\                                                              
+                                                                                                      
+.______   .______        ______   .___________. _______   ______ .___________.  ______   .______      
+|   _  \  |   _  \      /  __  \  |           ||   ____| /      ||           | /  __  \  |   _  \     
+|  |_)  | |  |_)  |    |  |  |  | `---|  |----`|  |__   |  ,----'`---|  |----`|  |  |  | |  |_)  |    
+|   ___/  |      /     |  |  |  |     |  |     |   __|  |  |         |  |     |  |  |  | |      /     
+|  |      |  |\  \----.|  `--'  |     |  |     |  |____ |  `----.    |  |     |  `--'  | |  |\  \----.
+| _|      | _| `._____| \______/      |__|     |_______| \______|    |__|      \______/  | _| `._____|
+                                                                                                      
+
+Este protector tiene un montón de diferentes trucos para evitar ser depurado,
+lo primero de todo handlers de excepción, uso de la API NtContinue para establecer 
+nuevos valores en EIP, checks de tiempo, etc.
+
+Lo primero que realiza este packer, es mirar que no hay bytes 0xCC (INT3, interrupciones software)
+en el primer byte de sus primeras funciones de la API. Este código se encontrará dentro de muchos
+códigos de checks de tiempos, así que por esto supongo que en el código original, esto es una 
+MACRO que se expande en el código, esta MACRO es la siguiente:
+
+Código de MACRO:
+
+	CPU Disasm
+	Address   Hex dump                   Command                                                              Comments
+	0040751D   60                        PUSHAD
+	0040751E   EB 03                     JMP SHORT alex_protector.00407523
+	00407520   EB 03                     JMP SHORT alex_protector.00407525
+	00407522   C7                        DB C7                                                                ; Unknown command
+	00407523   EB FB                     JMP SHORT alex_protector.00407520
+	00407525   E8 01000000               CALL alex_protector.0040752B
+
+	CPU Disasm
+	Address   Hex dump                   Command                                                              Comments
+	0040752B   83C4 04                   ADD ESP,4
+	0040752E   0F31                      RDTSC
+	00407530   8BD8                      MOV EBX,EAX
+	00407532   EB 03                     JMP SHORT alex_protector.00407537
+	00407534   EB 03                     JMP SHORT alex_protector.00407539
+	00407536   C7                        DB C7                                                                ; Unknown command
+	00407537   EB FB                     JMP SHORT alex_protector.00407534
+	00407539   E8 01000000               CALL alex_protector.0040753F
+
+	CPU Disasm
+	Address   Hex dump                   Command                                                              Comments
+	0040753F   83C4 04                   ADD ESP,4
+	00407542   8BCA                      MOV ECX,EDX
+	00407544   EB 03                     JMP SHORT alex_protector.00407549
+	00407546   EB 03                     JMP SHORT alex_protector.0040754B
+	00407548   C7                        DB C7                                                                ; Unknown command
+	00407549   EB FB                     JMP SHORT alex_protector.00407546
+	0040754B   E8 01000000               CALL alex_protector.00407551
+
+	CPU Disasm
+	Address   Hex dump                   Command                                                              Comments
+	00407551   83C4 04                   ADD ESP,4
+	00407554   0F31                      RDTSC
+	00407556   2BC3                      SUB EAX,EBX
+	00407558   EB 03                     JMP SHORT alex_protector.0040755D
+	0040755A   EB 03                     JMP SHORT alex_protector.0040755F
+	0040755C   C7                        DB C7                                                                ; Unknown command
+	0040755D   EB FB                     JMP SHORT alex_protector.0040755A
+	0040755F   E8 01000000               CALL alex_protector.00407565
+
+
+	CPU Disasm
+	Address   Hex dump                   Command                                                              Comments
+	00407565   83C4 04                   ADD ESP,4
+	00407568   1BD1                      SBB EDX,ECX
+	0040756A   0F31                      RDTSC
+	0040756C   03C3                      ADD EAX,EBX
+	0040756E   EB 03                     JMP SHORT alex_protector.00407573
+	00407570   EB 03                     JMP SHORT alex_protector.00407575
+	00407572   C7                        DB C7                                                                ; Unknown command
+	00407573   EB FB                     JMP SHORT alex_protector.00407570
+	00407575   E8 01000000               CALL alex_protector.0040757B
+
+
+	CPU Disasm
+	Address   Hex dump                   Command                                                              Comments
+	0040757B   83C4 04                   ADD ESP,4
+	0040757E   13D1                      ADC EDX,ECX
+	00407580   0F31                      RDTSC
+	00407582   2BC3                      SUB EAX,EBX
+	00407584   EB 03                     JMP SHORT alex_protector.00407589
+	00407586   EB 03                     JMP SHORT alex_protector.0040758B
+	00407588   C7                        DB C7                                                                ; Unknown command
+	00407589   EB FB                     JMP SHORT alex_protector.00407586
+	0040758B   E8 01000000               CALL alex_protector.00407591
+
+
+	CPU Disasm
+	Address   Hex dump                   Command                                                              Comments
+	00407591   83C4 04                   ADD ESP,4
+	00407594   EB 05                     JMP SHORT alex_protector.0040759B
+	00407596   68 F00FC7C8               PUSH C8C70FF0
+	0040759B   EB 03                     JMP SHORT alex_protector.004075A0
+	0040759D   EB 03                     JMP SHORT alex_protector.004075A2
+	0040759F   C7                        DB C7                                                                ; Unknown command
+	004075A0   EB FB                     JMP SHORT alex_protector.0040759D
+	004075A2   E8 01000000               CALL alex_protector.004075A8
+
+
+	CPU Disasm
+	Address   Hex dump                   Command                                                              Comments
+	004075A8   83C4 04                   ADD ESP,4
+	004075AB   1BD1                      SBB EDX,ECX
+	004075AD   EB 03                     JMP SHORT alex_protector.004075B2
+	004075AF   EB 03                     JMP SHORT alex_protector.004075B4
+	004075B1   C7                        DB C7                                                                ; Unknown command
+	004075B2   EB FB                     JMP SHORT alex_protector.004075AF
+	004075B4   E8 01000000               CALL alex_protector.004075BA
+
+
+	CPU Disasm
+	Address   Hex dump                   Command                                                              Comments
+	004075BA   83C4 04                   ADD ESP,4
+	004075BD   85D2                      TEST EDX,EDX
+	004075BF   75 D6                     JNE SHORT alex_protector.00407597
+	004075C1   61                        POPAD
+	004075C2   E8 35060000               CALL alex_protector.00407BFC
+
+Nos tocará ejecutar este código siempre que lo encontramos, hasta la instrucción TEST EDX,EDX y cambiar
+el valor de EDX a 0, si modificamos este código romperemos el algoritmo de checksum que habrá más tarde.
+Tras un rato, vamos a ver como Alex Protector resuelve otras funciones API que sus stubs usará, el 
+packer resolverá estas funciones API manualmente yendo a través de las cabeceras de las DLLs.
+Tras esto, tendremos el checksum:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+004076BD   8D85 00104000             LEA EAX,[EBP+alex_protector.401000]
+004076C3   B9 85130000               MOV ECX,1385
+004076C8   E8 E7040000               CALL alex_protector.alexProtectorChecksumFunction
+
+Como vemos, apunta a la primera parte del primer stub, y establece un tamaño de 1385 en ECX, 
+tras esto, ejecutará el código para calcular el checksum del código (si tenemos algún breakpoint
+de software, el checksum fallará y obtendremos una clave inválida para futuros descifrados).
+Aquí el código del checksum:
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00407BB4   60                        PUSHAD
+00407BB5   8BF0                      MOV ESI,EAX
+00407BB7   8BF9                      MOV EDI,ECX
+00407BB9   FC                        CLD
+00407BBA   33C9                      XOR ECX,ECX
+00407BBC   49                        DEC ECX
+00407BBD   8BD1                      MOV EDX,ECX
+00407BBF   33C0                      XOR EAX,EAX
+00407BC1   33DB                      XOR EBX,EBX
+00407BC3   AC                        LODS BYTE PTR DS:[ESI]
+00407BC4   32C1                      XOR AL,CL
+00407BC6   8ACD                      MOV CL,CH
+00407BC8   8AEA                      MOV CH,DL
+00407BCA   8AD6                      MOV DL,DH
+00407BCC   B6 08                     MOV DH,8
+00407BCE   66:D1EB                   SHR BX,1
+00407BD1   66:D1D8                   RCR AX,1
+00407BD4   73 09                     JAE SHORT alex_protector.00407BDF
+00407BD6   66:35 2083                XOR AX,8320
+00407BDA   66:81F3 B8ED              XOR BX,EDB8
+00407BDF   FECE                      DEC DH
+00407BE1   75 EB                     JNE SHORT alex_protector.00407BCE
+00407BE3   33C8                      XOR ECX,EAX
+00407BE5   33D3                      XOR EDX,EBX
+00407BE7   4F                        DEC EDI
+00407BE8   75 D5                     JNE SHORT alex_protector.00407BBF
+00407BEA   F7D2                      NOT EDX
+00407BEC   F7D1                      NOT ECX
+00407BEE   8BC2                      MOV EAX,EDX
+00407BF0   C1C0 10                   ROL EAX,10
+00407BF3   66:8BC1                   MOV AX,CX
+00407BF6   894424 1C                 MOV DWORD PTR SS:[ESP+1C],EAX
+00407BFA   61                        POPAD
+00407BFB   C3                        RETN
+
+
+Tras el checksum, tendremos un Load Effective Address en EDI:
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+004076CD   8DBD 31254000             LEA EDI,[EBP+alex_protector.402531]
+
+
+Esto será la dirección que usaremos para descifrar datos, para obtener la clave de descifrado haremos
+las siguientes operaciones una vez tengamos el checksum en EAX, y finalmente el descifrado:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+004076D6   33D2                      XOR EDX,EDX
+004076D8   B9 00010000               MOV ECX,100
+004076DD   F7F1                      DIV ECX
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+004076E2   8BDA                      MOV EBX,EDX
+004076E4   F7F1                      DIV ECX
+004076E6   03DA                      ADD EBX,EDX
+004076E8   F7F1                      DIV ECX
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+004076ED   03DA                      ADD EBX,EDX
+004076EF   F7F1                      DIV ECX
+004076F1   03DA                      ADD EBX,EDX
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+004076F7   8BC3                      MOV EAX,EBX
+004076F9   8B8D B5234000             MOV ECX,DWORD PTR SS:[EBP+alex_protector.4023B5]
+004076FF   3007                      XOR BYTE PTR DS:[EDI],AL
+00407701   47                        INC EDI
+00407702   49                        DEC ECX
+00407703   75 FA                     JNE SHORT alex_protector.004076FF
+
+
+
+Tras esto tendremos un VirtualAlloc dividido en partes por checks de tiempo de anti-debugging. Este buffer será 
+usado para llamar funciones de una manera que veremos más tarde (linea 444).
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00407756   6A 04                     PUSH 4
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+004077FD   68 00100000               PUSH 1000
+00407802   68 74EF0000               PUSH 0EF74
+00407807   6A 00                     PUSH 0
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+004078AE   FF95 11244000             CALL DWORD PTR SS:[EBP+alex_protector.402411]                      ; kernel32.VirtualAlloc
+004078B4   8985 BD234000             MOV DWORD PTR SS:[EBP+alex_protector.4023BD],EAX
+
+
+En EDI tendremos la dirección retornada por VirtualAlloc (este valor es introducido en la cima de la pila), EAX apuntará a una
+dirección de la siguiente manera:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00407A07   8D85 31254000             LEA EAX,[EBP+alex_protector.402531]
+00407A0D   50                        PUSH EAX
+
+Con ambas direcciones se usará aPlib para descomprimir un buffer a otro buffer virtual. Este será el segundo stub, y el packer
+saltará aquí.
+
+Dentro de este segundo stub, la primera cosa importante que encontraremos es otro VirtualAlloc (también con muchos checks de tiempo para
+anti-debugging).
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+0023001A   6A 04                     PUSH 4
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+002300C1   68 00100000               PUSH 1000
+002300C6   8B85 A1234000             MOV EAX,DWORD PTR SS:[EBP+alex_protector.4023A1]
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00230171   BB 4A000000               MOV EBX,4A
+00230176   F7E3                      MUL EBX
+00230178   50                        PUSH EAX
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+0023021E   6A 00                     PUSH 0
+00230220   FF95 11244000             CALL DWORD PTR SS:[EBP+alex_protector.402411]                      ; kernel32.VirtualAlloc
+00230226   8985 A5234000             MOV DWORD PTR SS:[EBP+alex_protector.4023A5],EAX
+
+
+Este buffer será reservado para más tarde, porque este buffer será el espacio para resolución de direcciones de funciones de API
+aquí habrá un salto a la API, pero antes de ese salto, habrá otro check de tiempo de anti-debugging. 
+Tras este código, tendremos un puntero a una estructura como la siguiente:
+
+	rvas_and_sizes struct 
+	<0x0>	rva_of_compressed_data
+	<0x4>	size_of_decompressed_data	
+	rvas_and_sizes ends
+
+Este información será usada para descomprimir secciones, así que el programa usará buffers virtuales para descomprimir secciones,
+esto lo podemos ver, mirando el código que asigna a ESI el puntero a esta estructura y luego establece los parámetros a VirtualAlloc:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+002302D1   8DB5 C1234000             LEA ESI,[EBP+alex_protector.4023C1]
+002302D7   8B46 04                   MOV EAX,DWORD PTR DS:[ESI+4]
+002302DA   6A 04                     PUSH 4
+002302DC   68 00100000               PUSH 1000
+002302E1   50                        PUSH EAX
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00230387   6A 00                     PUSH 0
+00230389   FF95 11244000             CALL DWORD PTR SS:[EBP+alex_protector.402411]
+0023038F   8985 9D234000             MOV DWORD PTR SS:[EBP+alex_protector.40239D],EAX
+
+
+Luego toma el RVA de la sección, y añade la base de image_file:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00230395   56                        PUSH ESI
+00230396   8B1E                      MOV EBX,DWORD PTR DS:[ESI]                                           ; get rva of section
+00230398   039D 99234000             ADD EBX,DWORD PTR SS:[EBP+alex_protector.402399]                   ; add the base
+0023039E   50                        PUSH EAX
+
+Tras todos estos pasos, descomprimirá cada sección de la estructura, a una dirección virtual, y copiará los bytes descomprimidos
+a la sección:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+002304F9   03BD 99234000             ADD EDI,DWORD PTR SS:[EBP+alex_protector.402399]
+002304FF   8BB5 9D234000             MOV ESI,DWORD PTR SS:[EBP+alex_protector.40239D]
+00230505   F3:A4                     REP MOVS BYTE PTR ES:[EDI],BYTE PTR DS:[ESI]
+
+Una vez es copiado, se liberará el buffer virtual:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00230507   5E                        POP ESI
+00230508   8B85 9D234000             MOV EAX,DWORD PTR SS:[EBP+alex_protector.40239D]
+0023050E   68 00800000               PUSH 8000
+00230513   6A 00                     PUSH 0
+00230515   50                        PUSH EAX
+00230516   FF95 15244000             CALL DWORD PTR SS:[EBP+alex_protector.402415]                      ; kernel32.VirtualFree
+
+Ahora que el packer finalizó la decompresión de algunas secciones, tenemos otro código que reserva memoria virtual,
+esta memoria virtual alojará el código ofuscado del punto de entrada original (linea 500):
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+002305D2   6A 04                     PUSH 4
+002305D4   68 00100000               PUSH 1000
+002305D9   8B85 91234000             MOV EAX,DWORD PTR SS:[EBP+alex_protector.402391]
+002305DF   6BC0 02                   IMUL EAX,EAX,2
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00230687   50                        PUSH EAX
+00230688   6A 00                     PUSH 0
+0023068A   FF95 11244000             CALL DWORD PTR SS:[EBP+alex_protector.402411]                      ; VirtualAlloc
+00230690   8985 AD234000             MOV DWORD PTR SS:[EBP+alex_protector.4023AD],EAX
+
+
+Y otro VirtualAlloc, este alojará las strings de importaciones:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00230696   6A 04                     PUSH 4
+00230698   68 00100000               PUSH 1000
+0023069D   8B85 8D234000             MOV EAX,DWORD PTR SS:[EBP+alex_protector.40238D]
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00230748   50                        PUSH EAX
+00230749   6A 00                     PUSH 0
+0023074B   FF95 11244000             CALL DWORD PTR SS:[EBP+alex_protector.402411]                      ; kernel32.VirtualAlloc
+00230751   8985 A9234000             MOV DWORD PTR SS:[EBP+alex_protector.4023A9],EAX
+
+
+Tras este VirtualAlloc, el programa calculará de nuevo el checksum como antes:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+00230757   8D85 00104000             LEA EAX,[EBP+alex_protector.401000]
+0023075D   B9 85130000               MOV ECX,1385
+00230762   8D95 B41B4000             LEA EDX,[EBP+alex_protector.401BB4]
+00230768   FFD2                      CALL EDX
+
+Y con este checksum descifrará otro buffer:
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+0023080F   8DBD 31254000             LEA EDI,[EBP+alex_protector.402531]
+00230815   03BD B5234000             ADD EDI,DWORD PTR SS:[EBP+alex_protector.4023B5]
+0023081B   33D2                      XOR EDX,EDX
+0023081D   B9 00010000               MOV ECX,100
+00230822   F7F1                      DIV ECX
+00230824   8BDA                      MOV EBX,EDX
+00230826   F7F1                      DIV ECX
+00230828   03DA                      ADD EBX,EDX
+0023082A   F7F1                      DIV ECX
+0023082C   03DA                      ADD EBX,EDX
+0023082E   F7F1                      DIV ECX
+00230830   03DA                      ADD EBX,EDX
+00230832   59                        POP ECX
+00230833   8BC3                      MOV EAX,EBX
+00230835   8B8D B9234000             MOV ECX,DWORD PTR SS:[EBP+alex_protector.4023B9]
+0023083B   3007                      XOR BYTE PTR DS:[EDI],AL
+0023083D   47                        INC EDI
+0023083E   49                        DEC ECX
+0023083F   75 FA                     JNE SHORT 0023083B
+
+Este buffer descifrádo será el buffer con las cadenas con los nombres de DLL y las funciones de esas DLLs 
+pero este buffer está a su vez comprimido, aquí el código de decompresión de ese buffer:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+002308EB   8B85 A9234000             MOV EAX,DWORD PTR SS:[EBP+alex_protector.4023A9]
+002308F1   8BF0                      MOV ESI,EAX
+002308F3   50                        PUSH EAX
+002308F4   8D9D 31254000             LEA EBX,[EBP+alex_protector.402531]
+002308FA   039D B5234000             ADD EBX,DWORD PTR SS:[EBP+alex_protector.4023B5]
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+002309A5   53                        PUSH EBX
+002309A6   8D95 08114000             LEA EDX,[EBP+alex_protector.401108]
+002309AC   FFD2                      CALL EDX                                                             ; alex_protector.aPLibDecompress
+
+El buffer virtual ahora contiene cadenas con nombres de DLL, nombres de funciones y ordinales, estos son guardados con una estructura,
+aquí están los valores que alex protector usará para saber qué tipo de valor es:
+
+	- 0xC3: este valor indicará que viene un nombre de DLL, antes del nombre de la DLL está el tamaño del nombre, y tras el nombre
+	un byte nulo (0).
+	- 0xC4: este valor indicará que viene un ordinal de función, así que solo necesita hacer un GetProcAddress de ese ordinal.
+	- otro valor: este valor representa el tamaño de un nombre de función, luego tras el nombre viene un byte nulo (0).
+	- 0x00: final de DLLs.
+
+Tras el nombre de una función o un ordinal de función, viene un valor que es el número de direcciones tras ese número, estas direcciones
+son los lugares desde los cuales el programa original llama a esas funciones.
+
+Dentro del código de alex protector, podemos ver el código que será usado para llamar a cada función de api, así que cuando una función
+de api es llamada en el ejecutable real, este código será llamado desde el programa:
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+002317AF   60                        PUSHAD
+002317B0   0F31                      RDTSC
+002317B2   EB 01                     JMP SHORT 002317B5
+002317B4   C9                        LEAVE
+002317B5   8BD8                      MOV EBX,EAX
+002317B7   EB 01                     JMP SHORT 002317BA
+002317B9   C9                        LEAVE
+002317BA   8BCA                      MOV ECX,EDX
+002317BC   0F31                      RDTSC
+002317BE   2BC3                      SUB EAX,EBX
+002317C0   1BD1                      SBB EDX,ECX
+002317C2   EB 01                     JMP SHORT 002317C5
+002317C4   C7                        DB C7                                                                ; Unknown command
+002317C5   0F31                      RDTSC
+002317C7   03C3                      ADD EAX,EBX
+002317C9   13D1                      ADC EDX,ECX
+002317CB   0F31                      RDTSC
+002317CD   EB 01                     JMP SHORT 002317D0
+002317CF   C7                        DB C7                                                                ; Unknown command
+002317D0   2BC3                      SUB EAX,EBX
+002317D2   EB 01                     JMP SHORT 002317D5
+002317D4   C7                        DB C7                                                                ; Unknown command
+002317D5   1BD1                      SBB EDX,ECX
+002317D7   85D2                      TEST EDX,EDX
+002317D9   75 0D                     JNE SHORT 002317E8
+002317DB   61                        POPAD
+002317DC   EB 01                     JMP SHORT 002317DF
+002317DE   C7                        DB C7                                                                ; Unknown command
+002317DF   68 00000000               PUSH 0
+002317E4   EB 01                     JMP SHORT 002317E7
+002317E7   C3                        RETN
+
+
+Aquí tenemos el código que copiará el desensamblado anterior:
+
+CPU Disasm
+Address   Hex dump                   Command                                                Comments
+0023162F   8BF3                      MOV ESI,EBX
+00231631   81EE 38000000             SUB ESI,38
+00231637   B9 4A000000               MOV ECX,4A
+0023163C   FC                        CLD
+0023163D   F3:A4                     REP MOVS BYTE PTR ES:[EDI],BYTE PTR DS:[ESI]
+
+
+Esto será un gran truco para hacer más difícil el dump del archivo y la reconstrucción de imports con scylla o import reconstructor.
+Para arreglar esto, se debería ir a través del buffer virtual, buscar las cadenas y direcciones, crear una nueva tabla de importaciones y
+parchear las direcciones.
+
+Finalmente el packer copiará a uno de los buffers alojados anteriormente, un código ofuscado que tiene dentro alguno stolen bytes (bytes robados)
+del punto de entrada original:
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                Comments
+00230D0B   8D9D 31254000             LEA EBX,[EBP+alex_protector.402531]
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                Comments
+00230DB6   039D B5234000             ADD EBX,DWORD PTR SS:[EBP+alex_protector.4023B5]
+00230DBC   039D B9234000             ADD EBX,DWORD PTR SS:[EBP+alex_protector.4023B9]
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                Comments
+00230E67   8B8D 95234000             MOV ECX,DWORD PTR SS:[EBP+alex_protector.402395]
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                Comments
+00230F12   8B85 AD234000             MOV EAX,DWORD PTR SS:[EBP+alex_protector.4023AD]
+00230F18   50                        PUSH EAX
+00230F19   53                        PUSH EBX
+00230F1A   8D95 08114000             LEA EDX,[EBP+alex_protector.401108]
+00230F20   FFD2                      CALL EDX                                               ; alex_protector.aPLibDecompress
+
+
+Este código, al final tendrá un JMP al punto de entrada tras los bytes robados. Esta instrucción JMP
+y el offset del JMP serán parcheados al final del segundo stub, este es el código que hace esto, el cual
+luego salta a este "punto de entrada":
+
+CPU Disasm
+Address   Hex dump                   Command                                                Comments
+00230FCA   8B85 AD234000             MOV EAX,DWORD PTR SS:[EBP+alex_protector.4023AD]
+00230FD0   8B9D 91234000             MOV EBX,DWORD PTR SS:[EBP+alex_protector.402391]
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                Comments
+0023107B   8BB5 85234000             MOV ESI,DWORD PTR SS:[EBP+alex_protector.402385]
+00231081   03C3                      ADD EAX,EBX
+00231083   C600 E9                   MOV BYTE PTR DS:[EAX],0E9
+00231086   40                        INC EAX
+00231087   8BCE                      MOV ECX,ESI
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+0023112E   2BC8                      SUB ECX,EAX
+00231130   83E9 04                   SUB ECX,4
+00231133   8908                      MOV DWORD PTR DS:[EAX],ECX
+
+
+CPU Disasm
+Address   Hex dump                   Command                                                              Comments
+002311DA   8B85 AD234000             MOV EAX,DWORD PTR SS:[EBP+alex_protector.4023AD]
+002311E0   894424 1C                 MOV DWORD PTR SS:[ESP+1C],EAX
+002311E4   61                        POPAD
+002311E5   FFE0                      JMP EAX
