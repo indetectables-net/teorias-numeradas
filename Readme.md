@@ -3,8 +3,8 @@ Repositorio dedicado a la ingeniería inversa: análisis de malware, generación
 
 
 Comunidad: Crackslatinos
-Enlace: t.me/crackslatinos 
-
-Conocimiento sin fines de lucro.
-
-Creado con fines de Backup.
+ ```
+ t.me/crackslatinos 
+```
+ 
+Creado con fines de Backup, sin fines de lucro
