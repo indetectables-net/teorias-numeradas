@@ -1,15 +1,17 @@
-# Teorias Numeradas
+# Teorías Numeradas
 
-Dado que la perdida de informacion en nuestro mundo es bastante comun dedici empezar a subir material que realmente seria una pena que se pierda.
-Parte de ese proyectofue hacer este mirror de las "teorias numeradas" subidas al sitio de Ricardo Narvaja y al grupo de CrackLatinos.
+Mirror de las "teorías numeradas" subidas al sitio de Ricardo Narvaja y al grupo de CrackLatinos. Este mirror es parte de la biblioteca de [Indetectables.net](https://indetectables.net/)
 
-Para los archivos que piden contraseña la misma es "a"
+## Descripción
 
+Este repositorio está dedicado a la ingeniería inversa: análisis de malware, generación de exploits y comprensión de código. Explora este emocionante campo y descubre técnicas para desentrañar los secretos de programas y sistemas.
 
-## Instalación
+Comunidad: [Crackslatinos](https://t.me/crackslatinos)
 
-Puede clonar el repo con [git](https://git-scm.com/download/win) o simplemente bajarlo desde descargar.
+Creado con fines de backup, sin fines de lucro.
 
-```bash
-git clone https://github.com/indetectables-net/toolkit
-```
+Para los archivos que piden contraseña, la misma es "a".
+
+## Descarga
+
+Puede clonar el repositorio con [git](https://git-scm.com/download/win) o simplemente descargarlo desde la opción de descarga.
